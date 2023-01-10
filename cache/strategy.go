@@ -7,6 +7,8 @@ import (
 	"path"
 	"sort"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 var FilesDir = "./cache/files"
@@ -104,4 +106,36 @@ func RandomLRU(totalSize, cleanSize int64) {
 
 func RunEliminationServer() {
 
+}
+
+func Reorganization() error {
+	dirs, err := os.ReadDir(FilesDir)
+	if err != nil {
+		return errors.Wrap(err, "reorganizate cache error")
+	}
+	for _, dir := range dirs {
+		if _, ok := hashMap.Load(dir.Name()); !dir.IsDir() || ok {
+			continue
+		}
+		subDirs, err := os.ReadDir(path.Join(FilesDir, dir.Name()))
+		if err != nil {
+			logger.Uld.Sugar().Errorf("read dir %s error:%v.\n", dir.Name(), err)
+			continue
+		}
+		info := FileInfo{}
+		for _, file := range subDirs {
+			if file.IsDir() {
+				continue
+			}
+			if i, err := file.Info(); err == nil {
+				info.Size += i.Size()
+				info.Num++
+			}
+		}
+		info.LoadTime = time.Now()
+		info.LastAccTime = time.Now()
+		info.UsedCount = 1
+		hashMap.Store(dir.Name(), info)
+	}
+	return nil
 }
