@@ -2,4 +2,7 @@
 	MaxCacheRate=""
 	Threshold=""
 	FreqWeight=""
-	MaxCacheSize=""
+	ServerPort="8080"
+	TokenKey=""
+	AccountSeed=""
+	AccountID=""

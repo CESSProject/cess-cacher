@@ -3,7 +3,6 @@ package cache
 import (
 	"cess-cacher/logger"
 	"encoding/json"
-	"log"
 	"math"
 	"os"
 	"os/exec"
@@ -125,7 +124,6 @@ func GetDiskStats() (DiskStats, error) {
 	stats.Used = data[1]
 	stats.Available = data[2]
 	stats.UseRate = float32(data[3]) / 100
-	log.Println(stats)
 	return stats, nil
 }
 
@@ -149,7 +147,6 @@ func GetMemoryStats() (MemoryStats, error) {
 	stats.Total = data[0]
 	stats.Free = data[1]
 	stats.Available = data[2]
-	log.Println(stats)
 	return stats, nil
 }
 
@@ -177,7 +174,6 @@ func GetNetStats() (NetStats, error) {
 	}
 	stats.Download = int64(data["download"].(float64))
 	stats.Upload = int64(data["upload"].(float64))
-	log.Println(stats)
 	return stats, nil
 }
 

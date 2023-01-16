@@ -92,7 +92,7 @@ func RandomLRU(c *Cache, cleanSize int64) {
 func StrategyServer(c *Cache) {
 	NetInfo := GetNetInfo()
 	interval := MaxCacheSize * 3 / 100 / NetInfo.Download * int64(time.Second)
-	if interval > int64(FLASH_TIME) {
+	if interval > int64(FLASH_TIME) || interval <= 0 {
 		interval = int64(FLASH_TIME)
 	}
 	ticker := time.NewTicker(time.Duration(interval))

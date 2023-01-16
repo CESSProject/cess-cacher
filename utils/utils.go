@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"io"
 	"math/rand"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/CESSProject/go-keyring"
+	"github.com/oschwald/geoip2-golang"
 )
 
 const baseStr = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()[]{}+-*/_=.<>?:|,~"
@@ -116,6 +118,23 @@ func GetExternalIp() (string, error) {
 		}
 	}
 	return "", errors.New("please check your network status")
+}
+
+//go:embed GeoLite2-City.mmdb
+var geoLite2 string
+
+func ParseCountryFromIp(ip string) (string, string, error) {
+	db, err := geoip2.FromBytes([]byte(geoLite2))
+	if err != nil {
+		return "", "", err
+	}
+	defer db.Close()
+
+	record, err := db.City(net.ParseIP(ip))
+	if err != nil {
+		return "", "", err
+	}
+	return record.Country.Names["en"], record.City.Names["en"], nil
 }
 
 func VerifySign(acc string, data []byte, sign []byte) bool {

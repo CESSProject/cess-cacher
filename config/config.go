@@ -12,12 +12,13 @@ type Config struct {
 	MaxCacheRate float64
 	Threshold    float64
 	FreqWeight   float64
-	MaxCacheSize int64
+	TokenKey     string
+	ServerPort   string
 	AccountSeed  string
 	AccountID    string
 }
 
-var DefaultConfigPath = "./conf.toml"
+var DefaultConfigPath = "./config/config.toml"
 
 var config Config
 

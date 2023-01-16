@@ -1,61 +1,33 @@
 package server
 
 import (
+	"cess-cacher/config"
+	"cess-cacher/logger"
+	"log"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
-type Error interface {
-	error
-	Status() int
-}
+const (
+	DEFAULT_MODE  = "debug"
+	READ_TIMEOUT  = time.Second * 10
+	WRITE_TIMEOUT = time.Second * 10
+)
 
-type StatefulError struct {
-	Code int
-	Err  error
-}
-
-type StatefulOk struct {
-	Code int
-	Data any
-}
-
-type Response struct {
-	Result bool `json:"result"`
-	Data   any  `json:"data"`
-}
-
-func (e StatefulError) Status() int {
-	return e.Code
-}
-
-func (e StatefulError) Error() string {
-	return e.Err.Error()
-}
-
-func NewError(code int, err error) StatefulError {
-	return StatefulError{
-		Code: code,
-		Err:  err,
+func SetupGinServer() {
+	gin.SetMode(DEFAULT_MODE)
+	router := NewRouter()
+	httpServer := &http.Server{
+		Addr:           ":" + config.GetConfig().ServerPort,
+		Handler:        router,
+		ReadTimeout:    READ_TIMEOUT,
+		WriteTimeout:   WRITE_TIMEOUT,
+		MaxHeaderBytes: 1 << 20,
 	}
-}
-
-func RespError(c *gin.Context, err StatefulError) {
-	resp := Response{
-		Result: false,
-		Data:   err.Err.Error(),
+	if err := httpServer.ListenAndServe(); err != nil {
+		logger.Uld.Sugar().Errorf("run http server error:%v", err)
+		log.Printf("run http server error:%v.\n", err)
 	}
-	c.JSON(err.Code, resp)
-}
-
-func RespOk(c *gin.Context, data any) {
-	resp := Response{Result: true}
-	if d, ok := data.(StatefulOk); ok {
-		resp.Data = d.Data
-		c.JSON(d.Code, resp)
-		return
-	}
-	resp.Data = data
-	c.JSON(http.StatusOK, resp)
 }

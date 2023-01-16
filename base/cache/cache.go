@@ -23,6 +23,7 @@ type ICache interface {
 	FindHashs(hash ...string) []string
 	GetHashList() []string
 	TotalSize() int64
+	QueryFile(hash string) (FileInfo, bool)
 	HitOrLoad(hash string) (bool, error)
 }
 
@@ -41,6 +42,10 @@ func (h CacheHandle) HitOrLoad(hash string) (bool, error) {
 		h.Hit(1)
 		return true, nil
 	}
+	//Reduce the impact of invalid requests on hit rate
+	if handler.cacheQueue.Query(hash) {
+		return false, nil
+	}
 	downloading, err := CheckAndCacheFile(hash)
 	if downloading {
 		h.Miss(1)
@@ -57,7 +62,7 @@ func InitCache(conf config.Config) error {
 		FilePath = path.Join(conf.CacheDir, "metadata.json")
 	}
 	if _, err := os.Stat(FilesDir); err != nil {
-		if err = os.MkdirAll(FilesDir, os.ModeDir); err != nil {
+		if err = os.MkdirAll(FilesDir, 0755); err != nil {
 			return errors.Wrap(err, "init cache error")
 		}
 	}
@@ -142,5 +147,27 @@ func CheckAndCacheFile(hash string) (bool, error) {
 }
 
 func CheckBadFileAndDel(fid string) bool {
+	dir := path.Join(FilesDir, fid)
+	f, err := os.Stat(dir)
+	if err != nil {
+		return true
+	}
+	fmeta, err := chain.Cli.GetFileMetaInfo(fid)
+	if err != nil {
+		if err.Error() == chain.ERR_Empty {
+			os.Remove(dir)
+		}
+		return true
+	}
+	if f.Size() != int64(fmeta.Size) {
+		os.Remove(dir)
+		return true
+	}
+	if fs, err := os.ReadDir(dir); err != nil {
+		return true
+	} else if len(fs) != len(fmeta.Backups[0].Slice_info) {
+		os.Remove(dir)
+		return true
+	}
 	return false
 }

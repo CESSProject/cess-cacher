@@ -73,6 +73,14 @@ func (c *Cache) FindHashs(hash ...string) []string {
 	return res
 }
 
+func (c *Cache) QueryFile(hash string) (FileInfo, bool) {
+	if info, ok := c.hashMap.Load(hash); !ok {
+		return FileInfo{}, ok
+	} else {
+		return info.(FileInfo), ok
+	}
+}
+
 func (c *Cache) LoadInCache(hash string, num int, size int64) {
 	if num <= 0 || size <= 0 {
 		return
@@ -182,6 +190,9 @@ func (c *Cache) CacheFileServer() {
 		hash := h
 		dir := path.Join(FilesDir, hash)
 		if _, err := os.Stat(dir); err != nil {
+			if err = os.Mkdir(dir, 0755); err != nil {
+				continue
+			}
 			ants.Submit(func() {
 				err := trans.DownloadFile(hash, dir)
 				if err != nil {
