@@ -3,6 +3,7 @@ package server
 import (
 	"cess-cacher/config"
 	"cess-cacher/logger"
+	"cess-cacher/server/service"
 	"log"
 	"net/http"
 	"time"
@@ -11,13 +12,16 @@ import (
 )
 
 const (
-	DEFAULT_MODE  = "debug"
 	READ_TIMEOUT  = time.Second * 10
 	WRITE_TIMEOUT = time.Second * 10
 )
 
 func SetupGinServer() {
-	gin.SetMode(DEFAULT_MODE)
+
+	service.InitTickets()
+	go service.OrdersCleanServer()
+
+	gin.SetMode(gin.ReleaseMode)
 	router := NewRouter()
 	httpServer := &http.Server{
 		Addr:           ":" + config.GetConfig().ServerPort,

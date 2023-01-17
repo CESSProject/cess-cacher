@@ -12,7 +12,7 @@ type Config struct {
 	MaxCacheRate float64
 	Threshold    float64
 	FreqWeight   float64
-	TokenKey     string
+	RpcAddr      string
 	ServerPort   string
 	AccountSeed  string
 	AccountID    string

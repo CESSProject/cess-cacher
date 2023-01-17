@@ -30,10 +30,10 @@ func Auth() gin.HandlerFunc {
 			resp.RespError(c, resp.NewError(http.StatusUnauthorized, err))
 			c.Abort()
 		}
-		hash := c.Param("hash")
-		if !claims.VerifyExpiresAt(time.Now(), true) || hash != claims.FileHash {
+		if !claims.VerifyExpiresAt(time.Now(), true) {
 			c.Abort()
 		}
+		c.Set("ticket", claims.Ticket)
 		c.Next()
 	}
 }

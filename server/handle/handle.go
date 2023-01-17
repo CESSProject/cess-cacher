@@ -6,7 +6,6 @@ import (
 	"cess-cacher/utils"
 	"fmt"
 	"path"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -14,18 +13,12 @@ import (
 )
 
 func DownloadHandler(c *gin.Context) {
-	hash := c.Param("hash")
-	i := c.Param("index")
-	if hash == "" || i == "" {
-		resp.RespError(c, resp.NewError(404, errors.New("file not found")))
+	tk, ok := c.Get("ticket")
+	if !ok {
+		resp.RespError(c, resp.NewError(400, errors.New("bad token")))
 		return
 	}
-	index, err := strconv.Atoi(i)
-	if err != nil {
-		resp.RespError(c, resp.NewError(400, errors.Wrap(err, "bad params")))
-		return
-	}
-	res, se := service.DownloadService(hash, index)
+	res, se := service.DownloadService(tk.(service.Ticket))
 	if se != nil {
 		if se.Status() == 0 {
 			resp.RespOk(c, res)
@@ -72,7 +65,7 @@ func AuthHandler(c *gin.Context) {
 		resp.RespError(c, resp.NewError(400, errors.Wrap(err, "bad params")))
 		return
 	}
-	if token, err := service.GenerateToken(req.Hash, req.Sign); err != nil {
+	if token, err := service.GenerateToken(req.BID, req.Sign); err != nil {
 		resp.RespError(c, err)
 	} else {
 		resp.RespOk(c, token)

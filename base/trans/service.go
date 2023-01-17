@@ -15,7 +15,7 @@ import (
 // Download files from cess storage service
 func DownloadFile(fid, dir string) error {
 	// file meta info
-	fmeta, err := chain.Cli.GetFileMetaInfo(fid)
+	fmeta, err := chain.GetChainCli().GetFileMetaInfo(fid)
 	if err != nil {
 		logger.Uld.Sugar().Errorf("get file %s metadata error:%v\n", fid, err)
 		if err.Error() == chain.ERR_Empty {

@@ -17,6 +17,7 @@
 package chain
 
 import (
+	"cess-cacher/config"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -24,6 +25,7 @@ import (
 	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v4"
 	"github.com/centrifuge/go-substrate-rpc-client/v4/signature"
 	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
+	"github.com/pkg/errors"
 )
 
 type IChain interface {
@@ -31,28 +33,15 @@ type IChain interface {
 	GetPublicKey() []byte
 	// GetSyncStatus returns whether the block is being synchronized
 	GetSyncStatus() (bool, error)
-	// GetMinerInfo is used to get the details of the miner
-	GetMinerInfo(pkey []byte) (MinerInfo, error)
-	GetInvalidFiles() ([]FileHash, error)
-	// GetAllSchedulerInfo is used to get information about all schedules
-	GetAllSchedulerInfo() ([]SchedulerInfo, error)
-	//
-	GetBlockHeightExited() (types.U32, error)
-	// Get the current block height
-	GetBlockHeight() (types.U32, error)
-	//
-	GetBlockHeightByHash(hash string) (types.U32, error)
-	// GetAccountInfo is used to get account information
-	GetAccountInfo(pkey []byte) (types.AccountInfo, error)
-	// GetFileMetaInfo is used to get the meta information of the file
-	GetFileMetaInfo(fid string) (FileMetaInfo, error)
 	// GetCessAccount is used to get the account in cess chain format
 	GetCessAccount() (string, error)
 	// GetIncomePublicKey returns its stash account public key
 	GetIncomeAccount() string
+	// GetFileMetaInfo returns file metadata by specific fid
+	GetFileMetaInfo(fid string) (FileMetaInfo, error)
 }
 
-var Cli IChain
+var cli IChain
 
 type chainClient struct {
 	lock            *sync.Mutex
@@ -66,6 +55,26 @@ type chainClient struct {
 	rpcAddr         string
 	IncomeAcc       string
 	timeForBlockOut time.Duration
+}
+
+var TimeOut_WaitBlock = time.Duration(time.Second * 15)
+
+func GetChainCli() IChain {
+	return cli
+}
+
+func InitChainClient(conf config.Config) error {
+	var err error
+	cli, err = NewChainClient(
+		conf.RpcAddr,
+		conf.AccountSeed,
+		conf.AccountID,
+		TimeOut_WaitBlock,
+	)
+	if err != nil {
+		return errors.Wrap(err, "init chain client error")
+	}
+	return nil
 }
 
 func NewChainClient(rpcAddr, secret, incomeAcc string, t time.Duration) (IChain, error) {

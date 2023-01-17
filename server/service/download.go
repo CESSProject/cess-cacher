@@ -2,10 +2,9 @@ package service
 
 import (
 	"cess-cacher/base/cache"
-	"cess-cacher/base/chain"
 	resp "cess-cacher/server/response"
-	"cess-cacher/utils"
 	"fmt"
+	"os"
 	"path"
 	"sync"
 	"time"
@@ -13,109 +12,75 @@ import (
 	"github.com/pkg/errors"
 )
 
-type Order struct {
-	Account string
-	Size    uint64
-	Silces  map[int]string
-	Used    map[int]struct{}
+type Ticket struct {
+	BID       string
+	FileHash  string
+	SliceHash string
+	Account   string
+	Size      uint64
+	Expires   time.Time
 }
 
-const TIMEOUT = 3 * time.Second
+const TAB_FLASH_TIME = 3 * time.Hour
 
-var orders *sync.Map
-var olk sync.Mutex
+var tickets *sync.Map
 
-func InitOrders() {
-	if orders == nil {
-		orders = new(sync.Map)
+func InitTickets() {
+	if tickets == nil {
+		tickets = new(sync.Map)
 	}
 }
 
-func DownloadService(fhash string, index int) (string, resp.Error) {
+func DownloadService(t Ticket) (string, resp.Error) {
 	var slicePath string
-	orderChan, err := getOrderChan(fhash)
-	if err != nil {
-		return slicePath, resp.NewError(500, errors.Wrap(err, "download service error"))
+	if time.Since(t.Expires) >= 0 {
+		err := errors.New("The ticket has expired")
+		return slicePath, resp.NewError(400, errors.Wrap(err, "download service error"))
 	}
-	order, ok := getOrder(orderChan)
-	if !ok {
-		err = errors.Wrap(errors.New("busy business"), "download service error")
-		return slicePath, resp.NewError(500, err)
+	if ticketBeUsed(t.BID, t.Expires) {
+		err := errors.New("The ticket has been used")
+		return slicePath, resp.NewError(400, errors.Wrap(err, "download service error"))
 	}
-	defer func() {
-		if len(order.Used) == len(order.Silces) {
-			orders.Delete(fhash)
-		} else {
-			orderChan <- order
-		}
-	}()
-	if _, ok := order.Silces[index]; !ok {
-		err = errors.Wrap(errors.New("bad index"), "download service error")
-		return slicePath, resp.NewError(400, err)
-	}
-	if ok, err := cache.GetCacheHandle().HitOrLoad(fhash); !ok {
+	if ok, err := cache.GetCacheHandle().HitOrLoad(t.FileHash); !ok {
 		if err != nil {
+			tickets.Delete(t.BID)
 			return slicePath, resp.NewError(500, errors.Wrap(err, "download service error"))
 		}
-		duration := order.Size / uint64(cache.GetNetInfo().Upload)
-		slicePath = fmt.Sprintf("The file %s is being cached. Please wait about %d seconds", fhash, duration)
+		duration := t.Size / uint64(cache.GetNetInfo().Upload)
+		slicePath = fmt.Sprintf("file %s is being cached,about %d s", t.FileHash, duration)
+		tickets.Delete(t.BID)
 		return slicePath, resp.NewError(0, nil)
 	}
-	if _, ok := order.Used[index]; ok {
-		err = errors.Wrap(errors.New("slice already been used"), "download service error")
-		return slicePath, resp.NewError(400, err)
+	slicePath = path.Join(cache.FilesDir, t.FileHash, t.SliceHash)
+	if _, err := os.Stat(slicePath); err != nil {
+		tickets.Delete(t.BID)
+		return slicePath, resp.NewError(500, errors.Wrap(err, "download service error"))
 	}
-	order.Used[index] = struct{}{}
-	slicePath = path.Join(cache.FilesDir, fhash, order.Silces[index])
 	return slicePath, nil
 }
 
-func getOrder(ch <-chan Order) (Order, bool) {
-	for {
-		select {
-		case order := <-ch:
-			return order, true
-		case <-time.After(TIMEOUT):
-			return Order{}, false
+func PraseTicketByBID(bid string) (Ticket, error) {
+	return Ticket{}, nil
+}
+
+func ticketBeUsed(bid string, exp time.Time) bool {
+	if t, ok := tickets.LoadOrStore(bid, exp); ok {
+		if exp := t.(time.Time); time.Since(exp) >= 0 {
+			tickets.Delete(bid)
 		}
+		return true
 	}
+	return false
 }
 
-func getOrderChan(hash string) (chan Order, error) {
-	var ch chan Order
-	if v, ok := orders.Load(hash); ok {
-		ch = v.(chan Order)
-		return ch, nil
+func OrdersCleanServer() {
+	for range time.NewTicker(TAB_FLASH_TIME).C {
+		tickets.Range(func(key, value any) bool {
+			exp := value.(time.Time)
+			if time.Since(exp) >= 0 {
+				tickets.Delete(key)
+			}
+			return true
+		})
 	}
-	order, err := getOrderFromChain(hash)
-	if err != nil {
-		return nil, err
-	}
-	olk.Lock()
-	if _, ok := orders.Load(hash); !ok {
-		ch = make(chan Order, 1)
-		ch <- order
-		orders.Store(hash, ch)
-	}
-	olk.Unlock()
-	return ch, nil
-}
-
-func getOrderFromChain(filehash string) (Order, error) {
-	var order Order
-	fmeta, err := chain.Cli.GetFileMetaInfo(filehash)
-	if err != nil {
-		return order, err
-	}
-	order.Account, err = utils.EncodePublicKeyAsCessAccount(fmeta.UserBriefs[0].User[:])
-	if err != nil {
-		return order, err
-	}
-	order.Silces = make(map[int]string)
-	order.Used = make(map[int]struct{})
-	order.Size = uint64(fmeta.Size)
-	for i, v := range fmeta.Backups[0].Slice_info {
-		order.Silces[i] = string(v.Slice_hash[:])
-	}
-	return order, nil
 }

@@ -48,212 +48,27 @@ func (c *chainClient) GetSyncStatus() (bool, error) {
 	return h.IsSyncing, nil
 }
 
-// Get storage miner information
-func (c *chainClient) GetMinerInfo(pkey []byte) (MinerInfo, error) {
+func (c *chainClient) GetStorageFromChain(target any, prefix, method string, args ...[]byte) error {
 	defer func() {
 		recover()
 	}()
-
-	var data MinerInfo
-
 	if !c.IsChainClientOk() {
 		c.SetChainState(false)
-		return data, ERR_RPC_CONNECTION
+		return ERR_RPC_CONNECTION
 	}
 	c.SetChainState(true)
 
-	b, err := types.Encode(types.NewAccountID(pkey))
+	key, err := types.CreateStorageKey(c.metadata, prefix, method, args...)
 	if err != nil {
-		return data, errors.Wrap(err, "[EncodeToBytes]")
+		return errors.Wrap(err, "get storage from chain error")
 	}
-
-	key, err := types.CreateStorageKey(
-		c.metadata,
-		state_Sminer,
-		sminer_MinerItems,
-		b,
-	)
+	ok, err := c.api.RPC.State.GetStorageLatest(key, target)
 	if err != nil {
-		return data, errors.Wrap(err, "[CreateStorageKey]")
+		return errors.Wrap(err, "get storage from chain error")
+	} else if !ok {
+		return errors.Wrap(errors.New(ERR_Empty), "get storage from chain error")
 	}
-
-	ok, err := c.api.RPC.State.GetStorageLatest(key, &data)
-	if err != nil {
-		return data, errors.Wrap(err, "[GetStorageLatest]")
-	}
-	if !ok {
-		return data, errors.New(ERR_Empty)
-	}
-	return data, nil
-}
-
-// Get all invalid files
-func (c *chainClient) GetInvalidFiles() ([]FileHash, error) {
-	defer func() {
-		recover()
-	}()
-
-	var data []FileHash
-
-	if !c.IsChainClientOk() {
-		c.SetChainState(false)
-		return data, ERR_RPC_CONNECTION
-	}
-	c.SetChainState(true)
-
-	key, err := types.CreateStorageKey(
-		c.metadata,
-		state_FileBank,
-		fileBank_InvalidFile,
-		c.GetPublicKey(),
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "[CreateStorageKey]")
-	}
-
-	ok, err := c.api.RPC.State.GetStorageLatest(key, &data)
-	if err != nil {
-		return nil, errors.Wrap(err, "[GetStorageLatest]")
-	}
-	if !ok {
-		return nil, errors.New(ERR_Empty)
-	}
-	return data, nil
-}
-
-// Get all scheduling nodes
-func (c *chainClient) GetAllSchedulerInfo() ([]SchedulerInfo, error) {
-	defer func() {
-		recover()
-	}()
-
-	var data []SchedulerInfo
-
-	if !c.IsChainClientOk() {
-		c.SetChainState(false)
-		return data, ERR_RPC_CONNECTION
-	}
-	c.SetChainState(true)
-
-	key, err := types.CreateStorageKey(
-		c.metadata,
-		state_FileMap,
-		fileMap_SchedulerInfo,
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "[CreateStorageKey]")
-	}
-
-	ok, err := c.api.RPC.State.GetStorageLatest(key, &data)
-	if err != nil {
-		return nil, errors.Wrap(err, "[GetStorageLatest]")
-	}
-	if !ok {
-		return nil, errors.New(ERR_Empty)
-	}
-	return data, nil
-}
-
-// Get the block height when the miner exits
-func (c *chainClient) GetBlockHeightExited() (types.U32, error) {
-	defer func() {
-		recover()
-	}()
-
-	var data types.U32
-
-	if !c.IsChainClientOk() {
-		c.SetChainState(false)
-		return data, ERR_RPC_CONNECTION
-	}
-	c.SetChainState(true)
-
-	key, err := types.CreateStorageKey(
-		c.metadata,
-		state_Sminer,
-		sminer_MinerLockIn,
-		c.GetPublicKey(),
-	)
-	if err != nil {
-		return data, errors.Wrap(err, "[CreateStorageKey]")
-	}
-
-	ok, err := c.api.RPC.State.GetStorageLatest(key, &data)
-	if err != nil {
-		return data, errors.Wrap(err, "[GetStorageLatest]")
-	}
-	if !ok {
-		return data, errors.New(ERR_Empty)
-	}
-	return data, nil
-}
-
-// Get the current block height
-func (c *chainClient) GetBlockHeight() (types.U32, error) {
-	defer func() {
-		recover()
-	}()
-
-	block, err := c.api.RPC.Chain.GetBlockLatest()
-	if err != nil {
-		return 0, errors.Wrap(err, "[GetBlockLatest]")
-	}
-	return types.U32(block.Block.Header.Number), nil
-}
-
-// Get the current block height
-func (c *chainClient) GetBlockHeightByHash(hash string) (types.U32, error) {
-	defer func() {
-		recover()
-	}()
-	var h types.Hash
-	err := types.DecodeFromHex(hash, &h)
-	if err != nil {
-		return 0, err
-	}
-	block, err := c.api.RPC.Chain.GetBlock(h)
-	if err != nil {
-		return 0, errors.Wrap(err, "[GetBlock]")
-	}
-	return types.U32(block.Block.Header.Number), nil
-}
-
-func (c *chainClient) GetAccountInfo(pkey []byte) (types.AccountInfo, error) {
-	defer func() {
-		recover()
-	}()
-
-	var data types.AccountInfo
-
-	if !c.IsChainClientOk() {
-		c.SetChainState(false)
-		return data, ERR_RPC_CONNECTION
-	}
-	c.SetChainState(true)
-
-	b, err := types.Encode(types.NewAccountID(pkey))
-	if err != nil {
-		return data, errors.Wrap(err, "[EncodeToBytes]")
-	}
-
-	key, err := types.CreateStorageKey(
-		c.metadata,
-		state_System,
-		system_Account,
-		b,
-	)
-	if err != nil {
-		return data, errors.Wrap(err, "[CreateStorageKey]")
-	}
-
-	ok, err := c.api.RPC.State.GetStorageLatest(key, &data)
-	if err != nil {
-		return data, errors.Wrap(err, "[GetStorageLatest]")
-	}
-	if !ok {
-		return data, errors.New(ERR_Empty)
-	}
-	return data, nil
+	return nil
 }
 
 // Query file meta info
@@ -262,42 +77,34 @@ func (c *chainClient) GetFileMetaInfo(fid string) (FileMetaInfo, error) {
 		data FileMetaInfo
 		hash FileHash
 	)
-
-	if !c.IsChainClientOk() {
-		c.SetChainState(false)
-		return data, ERR_RPC_CONNECTION
-	}
-	c.SetChainState(true)
-
 	if len(fid) != len(hash) {
 		return data, errors.New(ERR_Failed)
 	}
-
 	for i := 0; i < len(hash); i++ {
 		hash[i] = types.U8(fid[i])
 	}
 
 	b, err := types.Encode(hash)
 	if err != nil {
-		return data, errors.Wrap(err, "[Encode]")
+		return data, errors.Wrap(err, "get file metadata error")
 	}
-
-	key, err := types.CreateStorageKey(
-		c.metadata,
-		state_FileBank,
-		fileMap_FileMetaInfo,
-		b,
-	)
+	err = c.GetStorageFromChain(&data, state_FileBank, fileMap_FileMetaInfo, b)
 	if err != nil {
-		return data, errors.Wrap(err, "[CreateStorageKey]")
-	}
-
-	ok, err := c.api.RPC.State.GetStorageLatest(key, &data)
-	if err != nil {
-		return data, errors.Wrap(err, "[GetStorageLatest]")
-	}
-	if !ok {
-		return data, errors.New(ERR_Empty)
+		return data, errors.Wrap(err, "get file metadata error")
 	}
 	return data, nil
+}
+
+func (c *chainClient) GetAccountInfo() (types.AccountInfo, error) {
+	var info types.AccountInfo
+	err := c.GetStorageFromChain(
+		&info,
+		state_System,
+		system_Account,
+		c.keyring.PublicKey,
+	)
+	if err != nil {
+		return info, errors.Wrap(err, "get account info error")
+	}
+	return info, nil
 }

@@ -124,7 +124,7 @@ func initStrategy(conf config.Config, c *Cache) error {
 func CheckAndCacheFile(hash string) (bool, error) {
 	dir := path.Join(FilesDir, hash)
 	if f, err := os.Stat(dir); err == nil {
-		fmeta, err := chain.Cli.GetFileMetaInfo(hash)
+		fmeta, err := chain.GetChainCli().GetFileMetaInfo(hash)
 		if err != nil {
 			logger.Uld.Sugar().Errorf("check file %s error:%v", hash, err)
 			if err.Error() != chain.ERR_Empty {
@@ -152,7 +152,7 @@ func CheckBadFileAndDel(fid string) bool {
 	if err != nil {
 		return true
 	}
-	fmeta, err := chain.Cli.GetFileMetaInfo(fid)
+	fmeta, err := chain.GetChainCli().GetFileMetaInfo(fid)
 	if err != nil {
 		if err.Error() == chain.ERR_Empty {
 			os.Remove(dir)

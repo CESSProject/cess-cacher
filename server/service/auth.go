@@ -14,38 +14,40 @@ var key string
 var ValidDuration = time.Minute * 30
 
 type Claims struct {
-	FileHash string `json:"hash,omitempty"`
+	Ticket Ticket `json:"ticket,omitempty"`
 	jwt.RegisteredClaims
 }
 
 type AuthReq struct {
-	Hash string `json:"hash"`
+	BID  string `json:"bid"`
 	Sign []byte `json:"sign"`
 }
 
-func GenerateToken(hash string, sign []byte) (string, resp.Error) {
+func GenerateToken(bid string, sign []byte) (string, resp.Error) {
 	var stoken string
 	//check order
-	if o, err := getOrderFromChain(hash); err != nil {
+	t, err := PraseTicketByBID(bid)
+	if err != nil {
 		return stoken, resp.NewError(400, errors.Wrap(err, "generate token error"))
-	} else if !utils.VerifySign(o.Account, []byte(hash), sign) {
+	}
+	if !utils.VerifySign(t.Account, []byte(bid), sign) {
 		return stoken, resp.NewError(400, errors.Wrap(err, "generate token error"))
 	}
 	//data preheating: prepare the files not downloaded
-	cache.GetCacheHandle().HitOrLoad(hash)
+	cache.GetCacheHandle().HitOrLoad(t.FileHash)
 	if key == "" {
 		key = utils.GetRandomcode(32)
 	}
 	now := time.Now()
 	claims := Claims{
-		FileHash: hash,
+		Ticket: t,
 		RegisteredClaims: jwt.RegisteredClaims{
 			NotBefore: jwt.NewNumericDate(now.Add(-30)),
 			ExpiresAt: jwt.NewNumericDate(now.Add(ValidDuration)),
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	stoken, err := token.SignedString(key)
+	stoken, err = token.SignedString(key)
 	if err != nil {
 		return stoken, resp.NewError(500, errors.Wrap(err, "generate token error"))
 	}
