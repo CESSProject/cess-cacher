@@ -4,6 +4,8 @@ import (
 	"cess-cacher/base/cache"
 	resp "cess-cacher/server/response"
 	"cess-cacher/utils"
+	"os"
+	"path"
 
 	"github.com/pkg/errors"
 )
@@ -19,9 +21,10 @@ type MinerStats struct {
 }
 
 type FileStat struct {
-	Price      uint   `json:"price"`
-	Size       uint64 `json:"size"`
-	ShardCount int    `josn:"shardCount"`
+	Price      uint     `json:"price"`
+	Size       uint64   `json:"size"`
+	ShardCount int      `josn:"shardCount"`
+	Shards     []string `json:"shards"`
 }
 
 func QueryMinerStats() (MinerStats, resp.Error) {
@@ -68,5 +71,13 @@ func QueryFileInfo(hash string) FileStat {
 	stat.Price = 100
 	stat.Size = uint64(info.Size)
 	stat.ShardCount = info.Num
+	fs, err := os.ReadDir(path.Join(cache.FilesDir, hash))
+	if err != nil {
+		return stat
+	}
+	stat.Shards = make([]string, len(fs))
+	for i, v := range fs {
+		stat.Shards[i] = v.Name()
+	}
 	return stat
 }

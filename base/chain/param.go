@@ -23,7 +23,6 @@ const (
 	state_Sminer      = "Sminer"
 	state_SegmentBook = "SegmentBook"
 	state_System      = "System"
-	pallet_System     = "System"
 )
 
 // Chain state
