@@ -17,6 +17,8 @@
 package chain
 
 import (
+	"time"
+
 	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
 	"github.com/pkg/errors"
 )
@@ -56,6 +58,14 @@ type UserBrief struct {
 	User        types.AccountID
 	File_name   types.Bytes
 	Bucket_name types.Bytes
+}
+
+// bill info
+type Bill struct {
+	FileHash  string
+	SliceHash string
+	Account   string
+	Expires   time.Time
 }
 
 // Backups

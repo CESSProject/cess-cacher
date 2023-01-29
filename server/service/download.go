@@ -2,6 +2,7 @@ package service
 
 import (
 	"cess-cacher/base/cache"
+	"cess-cacher/base/chain"
 	resp "cess-cacher/server/response"
 	"fmt"
 	"os"
@@ -60,7 +61,22 @@ func DownloadService(t Ticket) (string, resp.Error) {
 }
 
 func PraseTicketByBID(bid string) (Ticket, error) {
-	return Ticket{}, nil
+	var ticket Ticket
+	bill, err := chain.GetChainCli().GetBill(bid)
+	if err != nil {
+		return ticket, errors.Wrap(err, "prase ticket error")
+	}
+	fmeta, err := chain.GetChainCli().GetFileMetaInfo(bill.FileHash)
+	if err != nil {
+		return ticket, errors.Wrap(err, "prase ticket error")
+	}
+	ticket.BID = bid
+	ticket.Account = bill.Account
+	ticket.FileHash = bill.FileHash
+	ticket.SliceHash = bill.SliceHash
+	ticket.Expires = bill.Expires
+	ticket.Size = uint64(fmeta.Size)
+	return ticket, nil
 }
 
 func ticketBeUsed(bid string, exp time.Time) bool {

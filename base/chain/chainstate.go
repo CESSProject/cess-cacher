@@ -122,3 +122,17 @@ func (c *chainClient) GetMinerInfo() (CacherInfo, error) {
 	}
 	return info, nil
 }
+
+func (c *chainClient) GetBill(bid string) (Bill, error) {
+	var bill Bill
+	err := c.GetStorageFromChain(
+		&bill,
+		_CACHER,
+		_CACHER_BILL,
+		[]byte(bid),
+	)
+	if err != nil {
+		return bill, errors.Wrap(err, "get bill error")
+	}
+	return bill, nil
+}

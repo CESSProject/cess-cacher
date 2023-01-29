@@ -32,6 +32,7 @@ const (
 	_FILEMAP_FILEMETA = "File"
 	// Miner
 	_CACHER_CACHER = "Cacher"
+	_CACHER_BILL   = "Ticket"
 )
 
 // Extrinsics
