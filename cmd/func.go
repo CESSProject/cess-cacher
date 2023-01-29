@@ -58,4 +58,8 @@ func BuildProfile(cmd *cobra.Command) {
 		logger.Uld.Sugar().Errorf("init config error:%v", err)
 		log.Fatalf("init config error:%v.\n", err)
 	}
+	if err := chain.InitChainClient(config.GetConfig()); err != nil {
+		logger.Uld.Sugar().Errorf("init chain client error:%v", err)
+		log.Fatalf("init chain client error:%v.\n", err)
+	}
 }
