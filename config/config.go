@@ -16,6 +16,7 @@ type Config struct {
 	ServerPort   string
 	AccountSeed  string
 	AccountID    string
+	BytePrice    int64
 }
 
 var DefaultConfigPath = "./config/config.toml"

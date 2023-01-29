@@ -17,6 +17,9 @@
 package chain
 
 import (
+	"cess-cacher/utils"
+	"math/big"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,7 +28,7 @@ import (
 )
 
 func (c *chainClient) SubmitExtrinsic(method string,
-	callback func(events CessEventRecords) bool, args ...any) (string, error) {
+	callback func(events CacheEventRecords) bool, args ...any) (string, error) {
 
 	defer func() { recover() }()
 	var (
@@ -90,7 +93,7 @@ func (c *chainClient) SubmitExtrinsic(method string,
 		select {
 		case status := <-sub.Chan():
 			if status.IsInBlock {
-				events := CessEventRecords{}
+				events := CacheEventRecords{}
 				txhash, _ = types.EncodeToHex(status.AsInBlock)
 				h, err := c.api.RPC.State.GetStorageRaw(c.keyEvents, status.AsInBlock)
 				if err != nil {
@@ -109,4 +112,70 @@ func (c *chainClient) SubmitExtrinsic(method string,
 			return txhash, errors.Wrap(ERR_RPC_TIMEOUT, "submit extrinsic error")
 		}
 	}
+}
+
+func (c *chainClient) Register(ip, port string, price int64) (string, error) {
+	info, err := NewCacherInfo(ip, port, price)
+	if err != nil {
+		return "", errors.Wrap(err, "register cacher error")
+	}
+	txhash, err := c.SubmitExtrinsic(
+		CACHER_REGISTER,
+		func(events CacheEventRecords) bool {
+			return len(events.Cacher_Register) > 0
+		},
+		info,
+	)
+	return txhash, errors.Wrap(err, "register cacher error")
+}
+
+func (c *chainClient) Update(ip, port string, price int64) (string, error) {
+	info, err := NewCacherInfo(ip, port, price)
+	if err != nil {
+		return "", errors.Wrap(err, "update cacher info error")
+	}
+	if _, err = c.GetMinerInfo(); err != nil {
+		return "", errors.Wrap(err, "update cacher info error")
+	}
+	txhash, err := c.SubmitExtrinsic(
+		CACHER_UPDATE,
+		func(events CacheEventRecords) bool {
+			return len(events.Cacher_Update) > 0
+		},
+		info,
+	)
+	return txhash, errors.Wrap(err, "update cacher info error")
+}
+
+func (c *chainClient) Logout() (string, error) {
+	txhash, err := c.SubmitExtrinsic(
+		CACHER_LOGOUT,
+		func(events CacheEventRecords) bool {
+			return len(events.Cacher_Logout) > 0
+		},
+	)
+	return txhash, errors.Wrap(err, "logout cacher error")
+}
+
+func NewCacherInfo(ip, port string, price int64) (CacherInfo, error) {
+	var info CacherInfo
+	if !utils.IsIPv4(ip) {
+		return info, ERR_RPC_IP_FORMAT
+	}
+	info.Ip.IPv4.Index = 0
+	ips := strings.Split(ip, ".")
+	for i := 0; i < len(info.Ip.IPv4.Value); i++ {
+		tmp, err := strconv.Atoi(ips[i])
+		if err != nil {
+			return info, err
+		}
+		info.Ip.IPv4.Value[i] = types.U8(tmp)
+	}
+	tmp, err := strconv.Atoi(port)
+	if err != nil {
+		return info, err
+	}
+	info.Ip.IPv4.Port = types.U16(tmp)
+	info.Byte_price = types.NewU128(*big.NewInt(price))
+	return info, nil
 }

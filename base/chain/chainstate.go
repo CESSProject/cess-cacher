@@ -88,7 +88,7 @@ func (c *chainClient) GetFileMetaInfo(fid string) (FileMetaInfo, error) {
 	if err != nil {
 		return data, errors.Wrap(err, "get file metadata error")
 	}
-	err = c.GetStorageFromChain(&data, state_FileBank, fileMap_FileMetaInfo, b)
+	err = c.GetStorageFromChain(&data, _FILEBANK, _FILEMAP_FILEMETA, b)
 	if err != nil {
 		return data, errors.Wrap(err, "get file metadata error")
 	}
@@ -99,12 +99,26 @@ func (c *chainClient) GetAccountInfo() (types.AccountInfo, error) {
 	var info types.AccountInfo
 	err := c.GetStorageFromChain(
 		&info,
-		state_System,
-		system_Account,
+		_SYSTEM,
+		_SYSTEM_ACCOUNT,
 		c.keyring.PublicKey,
 	)
 	if err != nil {
 		return info, errors.Wrap(err, "get account info error")
+	}
+	return info, nil
+}
+
+func (c *chainClient) GetMinerInfo() (CacherInfo, error) {
+	var info CacherInfo
+	err := c.GetStorageFromChain(
+		&info,
+		_CACHER,
+		_CACHER_CACHER,
+		[]byte(c.GetIncomeAccount()),
+	)
+	if err != nil {
+		return info, errors.Wrap(err, "get cacher info error")
 	}
 	return info, nil
 }

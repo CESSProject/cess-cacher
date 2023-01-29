@@ -43,27 +43,6 @@ type Signature [65]types.U8
 type Filter [256]types.U64
 type Public [33]types.U8
 
-// storage miner info
-type MinerInfo struct {
-	Beneficiary    types.AccountID
-	Ip             Ipv4Type
-	Collaterals    types.U128
-	Debt           types.U128
-	State          types.Bytes
-	Idle_space     types.U128
-	Service_space  types.U128
-	Autonomy_space types.U128
-	Puk            Public
-	Ias_cert       types.Bytes
-	Bloom_filter   BloomCollect
-}
-
-type BloomCollect struct {
-	AutonomyFilter Filter
-	ServiceFilter  Filter
-	IdleFilter     Filter
-}
-
 // file meta info
 type FileMetaInfo struct {
 	Size       types.U64
@@ -95,13 +74,6 @@ type SliceInfo struct {
 	Miner_acc  types.AccountID
 }
 
-// scheduler info
-type SchedulerInfo struct {
-	Ip             Ipv4Type
-	StashUser      types.AccountID
-	ControllerUser types.AccountID
-}
-
 type Ipv4Type_Query struct {
 	Placeholder types.U8 //
 	Index       types.U8
@@ -124,22 +96,16 @@ type Ipv6Type struct {
 	Port  types.U16
 }
 
-// user space package Info
-type SpacePackage struct {
-	Space           types.U128
-	Used_space      types.U128
-	Remaining_space types.U128
-	Tenancy         types.U32
-	Package_type    types.U8
-	Start           types.U32
-	Deadline        types.U32
-	State           types.Bytes
-}
-
 type BucketInfo struct {
 	Total_capacity     types.U32
 	Available_capacity types.U32
 	Objects_num        types.U32
 	Objects_list       []FileHash
 	Authority          []types.AccountID
+}
+
+// cacher info
+type CacherInfo struct {
+	Ip         IpAddress
+	Byte_price types.U128
 }

@@ -18,48 +18,27 @@ package chain
 
 // Pallert
 const (
-	state_FileBank    = "FileBank"
-	state_FileMap     = "FileMap"
-	state_Sminer      = "Sminer"
-	state_SegmentBook = "SegmentBook"
-	state_System      = "System"
+	_FILEBANK = "FileBank"
+	_SYSTEM   = "System"
+	_CACHER   = "Cacher"
 )
 
 // Chain state
 const (
 	// System
-	system_Account = "Account"
-	system_Events  = "Events"
-	// Sminer
-	sminer_MinerItems   = "MinerItems"
-	sminer_MinerDetails = "MinerDetails"
-	sminer_MinerLockIn  = "MinerLockIn"
-	// SegmentBook
-	segmentBook_MinerHoldSlice    = "MinerHoldSlice"
-	segmentBook_ChallengeSnapshot = "ChallengeSnapshot"
+	_SYSTEM_ACCOUNT = "Account"
+	_SYSTEM_EVENTS  = "Events"
 	// FileMap
-	fileMap_FileMetaInfo  = "File"
-	fileMap_SchedulerPuk  = "SchedulerPuk"
-	fileMap_SchedulerInfo = "SchedulerMap"
-	// FileBank
-	fileBank_FillerMap   = "FillerMap"
-	fileBank_InvalidFile = "InvalidFile"
+	_FILEMAP_FILEMETA = "File"
+	// Miner
+	_CACHER_CACHER = "Cacher"
 )
 
 // Extrinsics
 const (
-	tx_Sminer_Register               = "Sminer.regnstk"
-	ChainTx_SegmentBook_IntentSubmit = "SegmentBook.intent_submit"
-	tx_Sminer_ExitMining             = "Sminer.exit_miner"
-	tx_Sminer_Withdraw               = "Sminer.withdraw"
-	tx_Sminer_UpdateIp               = "Sminer.update_ip"
-	tx_Sminer_UpdateBeneficiary      = "Sminer.update_beneficiary"
-	tx_Sminer_Increase               = "Sminer.increase_collateral"
-	tx_SegmentBook_SubmitProve       = "SegmentBook.submit_prove"
-	tx_FileBank_ClearInvalidFile     = "FileBank.clear_invalid_file"
-	FileBank_ClearFiller             = "FileBank.clear_all_filler"
-	tx_FileBank_UploadFiller         = "FileBank.upload_filler"
-	tx_FileBank_UploadAutonomyFile   = "FileBank.upload_autonomy_file"
+	CACHER_REGISTER = "Cacher.register"
+	CACHER_UPDATE   = "Cacher.update"
+	CACHER_LOGOUT   = "Cacher.logout"
 )
 
 const (

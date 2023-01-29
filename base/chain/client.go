@@ -39,6 +39,12 @@ type IChain interface {
 	GetIncomeAccount() string
 	// GetFileMetaInfo returns file metadata by specific fid
 	GetFileMetaInfo(fid string) (FileMetaInfo, error)
+	//
+	Register(ip, port string, price int64) (string, error)
+	//
+	Update(ip, port string, price int64) (string, error)
+	//
+	Logout() (string, error)
 }
 
 var cli IChain
@@ -100,8 +106,8 @@ func NewChainClient(rpcAddr, secret, incomeAcc string, t time.Duration) (IChain,
 	}
 	cli.keyEvents, err = types.CreateStorageKey(
 		cli.metadata,
-		state_System,
-		system_Events,
+		_SYSTEM,
+		_SYSTEM_EVENTS,
 		nil,
 	)
 	if err != nil {
