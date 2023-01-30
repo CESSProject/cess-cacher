@@ -62,10 +62,12 @@ type UserBrief struct {
 
 // bill info
 type Bill struct {
+	BID       string
 	FileHash  string
 	SliceHash string
 	Account   string
 	Expires   time.Time
+	Amount    types.U128
 }
 
 // Backups

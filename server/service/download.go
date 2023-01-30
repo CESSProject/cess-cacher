@@ -3,6 +3,7 @@ package service
 import (
 	"cess-cacher/base/cache"
 	"cess-cacher/base/chain"
+	"cess-cacher/config"
 	resp "cess-cacher/server/response"
 	"fmt"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
 	"github.com/pkg/errors"
 )
 
@@ -60,9 +62,13 @@ func DownloadService(t Ticket) (string, resp.Error) {
 	return slicePath, nil
 }
 
-func PraseTicketByBID(bid string) (Ticket, error) {
+func PraseTicketByBID(hash, bid string) (Ticket, error) {
 	var ticket Ticket
-	bill, err := chain.GetChainCli().GetBill(bid)
+	b, err := types.HexDecodeString(hash)
+	if err != nil {
+		return ticket, errors.Wrap(err, "prase ticket error")
+	}
+	bill, err := chain.GetChainCli().GetBill(types.NewHash(b), bid)
 	if err != nil {
 		return ticket, errors.Wrap(err, "prase ticket error")
 	}
@@ -70,12 +76,26 @@ func PraseTicketByBID(bid string) (Ticket, error) {
 	if err != nil {
 		return ticket, errors.Wrap(err, "prase ticket error")
 	}
-	ticket.BID = bid
+	var size uint64
+	for _, s := range fmeta.Backups[0].Slice_info {
+		b := make([]byte, 64)
+		for i, v := range s.Slice_hash {
+			b[i] = byte(v)
+		}
+		if types.HexEncodeToString(b) == bill.SliceHash {
+			size = uint64(s.Shard_size)
+			break
+		}
+	}
+	if bill.Amount.Int64() != int64(size)*config.GetConfig().BytePrice {
+		return ticket, errors.Wrap(errors.New("bad amount"), "prase ticket error")
+	}
+	ticket.BID = bill.BID
 	ticket.Account = bill.Account
 	ticket.FileHash = bill.FileHash
 	ticket.SliceHash = bill.SliceHash
 	ticket.Expires = bill.Expires
-	ticket.Size = uint64(fmeta.Size)
+	ticket.Size = size
 	return ticket, nil
 }
 

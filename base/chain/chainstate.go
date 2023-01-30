@@ -123,16 +123,38 @@ func (c *chainClient) GetMinerInfo() (CacherInfo, error) {
 	return info, nil
 }
 
-func (c *chainClient) GetBill(bid string) (Bill, error) {
+func (c *chainClient) GetBill(hash types.Hash, bid string) (Bill, error) {
 	var bill Bill
-	err := c.GetStorageFromChain(
-		&bill,
-		_CACHER,
-		_CACHER_BILL,
-		[]byte(bid),
-	)
+	block, err := c.api.RPC.Chain.GetBlock(hash)
 	if err != nil {
 		return bill, errors.Wrap(err, "get bill error")
 	}
+	for _, ext := range block.Block.Extrinsics {
+		args := parseArgs(ext.Method.Args, []int{128, 32, 32, 13, 128})
+		if types.Decode(args[0], &bill.BID) != nil || bill.BID != bid {
+			continue
+		}
+		if types.Decode(args[1], &bill.FileHash) != nil ||
+			types.Decode(args[2], &bill.SliceHash) != nil ||
+			types.Decode(args[3], &bill.Expires) != nil ||
+			types.Decode(args[4], &bill.Amount) != nil {
+			continue
+		}
+		acc, err := utils.EncodePublicKeyAsSubstrateAccount(ext.Signature.Signer.AsID[:])
+		if err != nil {
+			return bill, errors.Wrap(err, "get bill error")
+		}
+		bill.Account = acc
+		return bill, nil
+	}
 	return bill, nil
+}
+
+func parseArgs(args []byte, lens []int) [][]byte {
+	res := make([][]byte, len(lens))
+	for i, l := range lens {
+		res[i] = args[:l]
+		args = args[l:]
+	}
+	return res
 }

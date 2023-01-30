@@ -6,4 +6,5 @@
 	TokenKey=""
 	AccountSeed=""
 	AccountID=""
+	RpcAddr=""
 	BytePrice=1000

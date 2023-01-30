@@ -19,18 +19,19 @@ type Claims struct {
 }
 
 type AuthReq struct {
+	Hash string `json:"hash"`
 	BID  string `json:"bid"`
 	Sign []byte `json:"sign"`
 }
 
-func GenerateToken(bid string, sign []byte) (string, resp.Error) {
+func GenerateToken(hash, bid string, sign []byte) (string, resp.Error) {
 	var stoken string
 	//check order
-	t, err := PraseTicketByBID(bid)
+	t, err := PraseTicketByBID(hash, bid)
 	if err != nil {
 		return stoken, resp.NewError(400, errors.Wrap(err, "generate token error"))
 	}
-	if !utils.VerifySign(t.Account, []byte(bid), sign) {
+	if !utils.VerifySign(t.Account, []byte(hash+bid), sign) {
 		return stoken, resp.NewError(400, errors.Wrap(err, "generate token error"))
 	}
 	//data preheating: prepare the files not downloaded

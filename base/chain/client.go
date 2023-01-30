@@ -40,7 +40,7 @@ type IChain interface {
 	// GetFileMetaInfo returns file metadata by specific fid
 	GetFileMetaInfo(fid string) (FileMetaInfo, error)
 	//
-	GetBill(bid string) (Bill, error)
+	GetBill(hash types.Hash, bid string) (Bill, error)
 	//
 	Register(ip, port string, price int64) (string, error)
 	//
