@@ -87,7 +87,7 @@ func PraseTicketByBID(hash, bid string) (Ticket, error) {
 			break
 		}
 	}
-	if bill.Amount.Int64() != int64(size)*config.GetConfig().BytePrice {
+	if bill.Amount.Int64() != int64(size*config.GetConfig().BytePrice) {
 		return ticket, errors.Wrap(errors.New("bad amount"), "prase ticket error")
 	}
 	ticket.BID = bill.BID

@@ -56,6 +56,8 @@ func QueryHandler(c *gin.Context) {
 		}
 		res := service.QueryFileInfo(hash)
 		resp.RespOkWithFlag(c, res.Size > 0, res)
+	case "price":
+		resp.RespOk(c, service.QueryBytePrice())
 	}
 }
 
@@ -65,7 +67,7 @@ func AuthHandler(c *gin.Context) {
 		resp.RespError(c, resp.NewError(400, errors.Wrap(err, "bad params")))
 		return
 	}
-	if token, err := service.GenerateToken(req.BID, req.Sign); err != nil {
+	if token, err := service.GenerateToken(req.Hash, req.BID, req.Sign); err != nil {
 		resp.RespError(c, err)
 	} else {
 		resp.RespOk(c, token)

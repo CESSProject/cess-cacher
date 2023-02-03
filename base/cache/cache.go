@@ -22,7 +22,7 @@ type ICache interface {
 	GetCacheStats() Stat
 	FindHashs(hash ...string) []string
 	GetHashList() []string
-	TotalSize() int64
+	TotalSize() uint64
 	QueryFile(hash string) (FileInfo, bool)
 	HitOrLoad(hash string) (bool, error)
 }
@@ -138,7 +138,7 @@ func CheckAndCacheFile(hash string) (bool, error) {
 		}
 		if fmeta.Size == types.U64(f.Size()) &&
 			num == len(fmeta.Backups[0].Slice_info) {
-			handler.LoadInCache(hash, num, f.Size())
+			handler.LoadInCache(hash, num, uint64(f.Size()))
 			return false, nil
 		}
 	}

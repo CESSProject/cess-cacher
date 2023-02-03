@@ -19,13 +19,13 @@ import (
 
 const baseStr = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()[]{}+-*/_=.<>?:|,~"
 
-func GetDirSize(path string) (int64, error) {
+func GetDirSize(path string) (uint64, error) {
 	fs, err := os.Stat(path)
 	if err != nil {
 		return 0, err
 	}
 	if fs.IsDir() {
-		return fs.Size(), nil
+		return uint64(fs.Size()), nil
 	}
 	return 0, errors.New("not dir")
 }

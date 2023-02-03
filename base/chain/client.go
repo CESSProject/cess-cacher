@@ -42,9 +42,9 @@ type IChain interface {
 	//
 	GetBill(hash types.Hash, bid string) (Bill, error)
 	//
-	Register(ip, port string, price int64) (string, error)
+	Register(ip, port string, price uint64) (string, error)
 	//
-	Update(ip, port string, price int64) (string, error)
+	Update(ip, port string, price uint64) (string, error)
 	//
 	Logout() (string, error)
 }

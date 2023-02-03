@@ -13,15 +13,15 @@ import (
 )
 
 var (
-	MaxCacheRate       = 0.95
-	Threshold          = 0.8
-	FreqWeight         = 0.3
-	MaxCacheSize int64 = 0
+	MaxCacheRate        = 0.95
+	Threshold           = 0.8
+	FreqWeight          = 0.3
+	MaxCacheSize uint64 = 0
 )
 
 type Item struct {
 	Hash     string
-	Size     int64
+	Size     uint64
 	Count    int
 	Interval time.Duration
 }
@@ -32,9 +32,9 @@ func (q LruQueue) Len() int           { return len(q) }
 func (q LruQueue) Less(i, j int) bool { return q[i].Interval > q[j].Interval }
 func (q LruQueue) Swap(i, j int)      { q[i], q[j] = q[j], q[i] }
 
-func GetRandomList(c *Cache, pickSize int64) []Item {
+func GetRandomList(c *Cache, pickSize uint64) []Item {
 	var (
-		size     int64
+		size     uint64
 		check    map[string]struct{}
 		randList []Item
 	)
@@ -68,7 +68,7 @@ func GetRandomList(c *Cache, pickSize int64) []Item {
 	return randList
 }
 
-func RandomLRU(c *Cache, cleanSize int64) {
+func RandomLRU(c *Cache, cleanSize uint64) {
 	lruq := LruQueue(GetRandomList(c, cleanSize*3))
 	//Access frequency affects the elimination result
 	for _, v := range lruq {
@@ -78,7 +78,7 @@ func RandomLRU(c *Cache, cleanSize int64) {
 	}
 	//
 	sort.Sort(lruq)
-	var size int64
+	var size uint64
 	for _, v := range lruq {
 		if size >= cleanSize {
 			break
@@ -91,16 +91,16 @@ func RandomLRU(c *Cache, cleanSize int64) {
 
 func StrategyServer(c *Cache) {
 	NetInfo := GetNetInfo()
-	interval := MaxCacheSize * 3 / 100 / NetInfo.Download * int64(time.Second)
-	if interval > int64(FLASH_TIME) || interval <= 0 {
-		interval = int64(FLASH_TIME)
+	interval := MaxCacheSize * 3 / 100 / NetInfo.Download * uint64(time.Second)
+	if interval > uint64(FLASH_TIME) || interval <= 0 {
+		interval = uint64(FLASH_TIME)
 	}
 	ticker := time.NewTicker(time.Duration(interval))
 	defer ticker.Stop()
 	for range ticker.C {
 		used := c.TotalSize()
-		if used >= int64(float64(MaxCacheSize)*MaxCacheRate) {
-			RandomLRU(c, used-int64(float64(MaxCacheSize)*Threshold))
+		if used >= uint64(float64(MaxCacheSize)*MaxCacheRate) {
+			RandomLRU(c, used-uint64(float64(MaxCacheSize)*Threshold))
 		}
 	}
 }
@@ -128,7 +128,7 @@ func Reorganizate(c *Cache) error {
 				continue
 			}
 			if i, err := file.Info(); err == nil {
-				info.Size += i.Size()
+				info.Size += uint64(i.Size())
 				info.Num++
 			}
 		}

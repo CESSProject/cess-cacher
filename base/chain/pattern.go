@@ -70,6 +70,14 @@ type Bill struct {
 	Amount    types.U128
 }
 
+type BillOnChain struct {
+	BID       string
+	FileHash  string
+	SliceHash string
+	Expires   time.Time
+	Amount    types.U128
+}
+
 // Backups
 type Backup struct {
 	Backup_index types.U8

@@ -13,10 +13,11 @@ type Config struct {
 	Threshold    float64
 	FreqWeight   float64
 	RpcAddr      string
+	ServerIp     string
 	ServerPort   string
 	AccountSeed  string
 	AccountID    string
-	BytePrice    int64
+	BytePrice    uint64
 }
 
 var DefaultConfigPath = "./config/config.toml"

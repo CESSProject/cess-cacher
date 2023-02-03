@@ -2,6 +2,7 @@ package service
 
 import (
 	"cess-cacher/base/cache"
+	"cess-cacher/config"
 	resp "cess-cacher/server/response"
 	"cess-cacher/utils"
 	"os"
@@ -12,16 +13,17 @@ import (
 
 type MinerStats struct {
 	GeoLocation string            `json:"geoLocation"`
-	BytePrice   uint              `json:"bytePrice"`
+	BytePrice   uint64            `json:"bytePrice"`
 	MinerStatus string            `json:"status"`
 	NetStats    cache.NetStats    `json:"netStats"`
 	MemoryStats cache.MemoryStats `json:"memStats"`
 	CPUStats    cache.CPUStats    `json:"cpuStats"`
 	DiskStats   cache.DiskStats   `json:"diskStats"`
+	CacheStat   cache.Stat        `json:"cacheStat"`
 }
 
 type FileStat struct {
-	Price      uint     `json:"price"`
+	Price      uint64   `json:"price"`
 	Size       uint64   `json:"size"`
 	ShardCount int      `josn:"shardCount"`
 	Shards     []string `json:"shards"`
@@ -34,6 +36,8 @@ func QueryMinerStats() (MinerStats, resp.Error) {
 	)
 	mstat.MinerStatus = "active"
 	mstat.NetStats = cache.GetNetInfo()
+	mstat.CacheStat = cache.GetCacheHandle().GetCacheStats()
+	mstat.BytePrice = config.GetConfig().BytePrice
 	mstat.MemoryStats, err = cache.GetMemoryStats()
 	if err != nil {
 		return mstat, resp.NewError(500, errors.Wrap(err, "query miner stats error"))
@@ -68,7 +72,7 @@ func QueryFileInfo(hash string) FileStat {
 	if !ok {
 		return stat
 	}
-	stat.Price = 100
+	stat.Price = uint64(info.Size) * config.GetConfig().BytePrice
 	stat.Size = uint64(info.Size)
 	stat.ShardCount = info.Num
 	fs, err := os.ReadDir(path.Join(cache.FilesDir, hash))
@@ -80,4 +84,8 @@ func QueryFileInfo(hash string) FileStat {
 		stat.Shards[i] = v.Name()
 	}
 	return stat
+}
+
+func QueryBytePrice() uint64 {
+	return config.GetConfig().BytePrice
 }

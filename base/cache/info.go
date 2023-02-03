@@ -18,16 +18,16 @@ import (
 )
 
 type DiskStats struct {
-	Total     int64   `json:"total"`
-	Used      int64   `json:"used"`
-	Available int64   `json:"available"`
+	Total     uint64  `json:"total"`
+	Used      uint64  `json:"used"`
+	Available uint64  `json:"available"`
 	UseRate   float32 `json:"useRate"`
 }
 
 type MemoryStats struct {
-	Total     int64 `json:"total"`
-	Free      int64 `json:"free"`
-	Available int64 `json:"available"`
+	Total     uint64 `json:"total"`
+	Free      uint64 `json:"free"`
+	Available uint64 `json:"available"`
 }
 
 type CPUStats struct {
@@ -36,8 +36,8 @@ type CPUStats struct {
 }
 
 type NetStats struct {
-	Download int64 `json:"cacheSpeed"`
-	Upload   int64 `json:"downloadSpeed"`
+	Download uint64 `json:"cacheSpeed"`
+	Upload   uint64 `json:"downloadSpeed"`
 }
 
 type CacheStats struct {
@@ -49,9 +49,9 @@ type CacheStats struct {
 }
 
 type Stat struct {
-	HitRate  float32
-	MissRate float32
-	ErrRate  float32
+	HitRate  float32 `json:"hitRate"`
+	MissRate float32 `json:"missRate"`
+	ErrRate  float32 `json:"errRate"`
 }
 
 const FLASH_TIME = time.Hour * 3
@@ -112,13 +112,13 @@ func GetDiskStats() (DiskStats, error) {
 	}
 	tmp := strings.Fields(strings.Split(string(out), "\n")[1])
 	tmp[len(tmp)-2] = strings.Replace(tmp[len(tmp)-2], "%", "", 1)
-	data := []int64{}
+	data := []uint64{}
 	for i := 1; i < len(tmp)-1; i++ {
 		d, err := strconv.ParseInt(tmp[i], 10, 64)
 		if err != nil {
 			return stats, errors.Wrap(err, "get disk stat error")
 		}
-		data = append(data, d)
+		data = append(data, uint64(d))
 	}
 	stats.Total = data[0]
 	stats.Used = data[1]
@@ -136,13 +136,13 @@ func GetMemoryStats() (MemoryStats, error) {
 	}
 	tmp := strings.Fields(strings.Split(string(out), "\n")[1])[1:]
 	tmp = []string{tmp[0], tmp[2], tmp[len(tmp)-1]}
-	data := make([]int64, len(tmp))
+	data := make([]uint64, len(tmp))
 	for i, v := range tmp {
 		d, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
 			return stats, errors.Wrap(err, "get memory stats error")
 		}
-		data[i] = d
+		data[i] = uint64(d)
 	}
 	stats.Total = data[0]
 	stats.Free = data[1]
@@ -172,8 +172,8 @@ func GetNetStats() (NetStats, error) {
 	if err != nil {
 		return stats, errors.Wrap(err, "get net stats error")
 	}
-	stats.Download = int64(data["download"].(float64))
-	stats.Upload = int64(data["upload"].(float64))
+	stats.Download = uint64(data["download"].(float64))
+	stats.Upload = uint64(data["upload"].(float64))
 	return stats, nil
 }
 

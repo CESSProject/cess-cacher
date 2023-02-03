@@ -18,7 +18,7 @@ const FLASH_FILE_TIME = time.Minute
 const DEFAULT_QUEUE_SIZE = 512
 
 type FileInfo struct {
-	Size        int64
+	Size        uint64
 	Num         int
 	LoadTime    time.Time
 	UsedCount   int
@@ -34,7 +34,7 @@ type HashQueue struct {
 type Cache struct {
 	rw         sync.RWMutex
 	hashMap    sync.Map
-	size       int64
+	size       uint64
 	delQueue   *HashQueue
 	cacheQueue *HashQueue
 }
@@ -48,7 +48,7 @@ func NewCache(qlen int) *Cache {
 	return cache
 }
 
-func (c *Cache) TotalSize() int64 {
+func (c *Cache) TotalSize() uint64 {
 	c.rw.RLock()
 	defer c.rw.RUnlock()
 	return c.size
@@ -81,7 +81,7 @@ func (c *Cache) QueryFile(hash string) (FileInfo, bool) {
 	}
 }
 
-func (c *Cache) LoadInCache(hash string, num int, size int64) {
+func (c *Cache) LoadInCache(hash string, num int, size uint64) {
 	if num <= 0 || size <= 0 {
 		return
 	}
@@ -151,7 +151,7 @@ func (c *Cache) LoadMetadata() {
 		logger.Uld.Sugar().Errorf("unmarshal metadata file error:%v.\n", err)
 		os.Exit(1)
 	}
-	var size int64
+	var size uint64
 	for k, v := range list {
 		c.hashMap.Store(k, v)
 		size += v.Size

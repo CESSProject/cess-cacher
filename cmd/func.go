@@ -4,20 +4,15 @@ import (
 	"cess-cacher/base/chain"
 	"cess-cacher/config"
 	"cess-cacher/logger"
-	"cess-cacher/utils"
 	"log"
 
 	"github.com/spf13/cobra"
 )
 
 func RegisterCacher() {
-	ip, err := utils.GetExternalIp()
-	if err != nil {
-		log.Fatalf("register cacher error %v", err)
-	}
 	cli := chain.GetChainCli()
 	conf := config.GetConfig()
-	txhash, err := cli.Register(ip, conf.ServerPort, conf.BytePrice)
+	txhash, err := cli.Register(conf.ServerIp, conf.ServerPort, conf.BytePrice)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -25,13 +20,9 @@ func RegisterCacher() {
 }
 
 func UpdateCacherInfo() {
-	ip, err := utils.GetExternalIp()
-	if err != nil {
-		log.Fatalf("update cacher info error %v", err)
-	}
 	cli := chain.GetChainCli()
 	conf := config.GetConfig()
-	txhash, err := cli.Update(ip, conf.ServerPort, conf.BytePrice)
+	txhash, err := cli.Update(conf.ServerIp, conf.ServerPort, conf.BytePrice)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -114,7 +114,7 @@ func (c *chainClient) SubmitExtrinsic(method string,
 	}
 }
 
-func (c *chainClient) Register(ip, port string, price int64) (string, error) {
+func (c *chainClient) Register(ip, port string, price uint64) (string, error) {
 	info, err := NewCacherInfo(ip, port, price)
 	if err != nil {
 		return "", errors.Wrap(err, "register cacher error")
@@ -129,7 +129,7 @@ func (c *chainClient) Register(ip, port string, price int64) (string, error) {
 	return txhash, errors.Wrap(err, "register cacher error")
 }
 
-func (c *chainClient) Update(ip, port string, price int64) (string, error) {
+func (c *chainClient) Update(ip, port string, price uint64) (string, error) {
 	info, err := NewCacherInfo(ip, port, price)
 	if err != nil {
 		return "", errors.Wrap(err, "update cacher info error")
@@ -157,7 +157,7 @@ func (c *chainClient) Logout() (string, error) {
 	return txhash, errors.Wrap(err, "logout cacher error")
 }
 
-func NewCacherInfo(ip, port string, price int64) (CacherInfo, error) {
+func NewCacherInfo(ip, port string, price uint64) (CacherInfo, error) {
 	var info CacherInfo
 	if !utils.IsIPv4(ip) {
 		return info, ERR_RPC_IP_FORMAT
@@ -176,6 +176,6 @@ func NewCacherInfo(ip, port string, price int64) (CacherInfo, error) {
 		return info, err
 	}
 	info.Ip.IPv4.Port = types.U16(tmp)
-	info.Byte_price = types.NewU128(*big.NewInt(price))
+	info.Byte_price = types.NewU128(*big.NewInt(int64(price)))
 	return info, nil
 }
