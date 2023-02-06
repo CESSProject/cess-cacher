@@ -33,9 +33,17 @@ type CacherLogout struct {
 	Topics []types.Hash
 }
 
+type Pay struct {
+	Phase  types.Phase
+	Acc    types.AccountID
+	Bills  []BillOnChain
+	Topics []types.Hash
+}
+
 type CacheEventRecords struct {
 	types.EventRecords
 	Cacher_Register []CacherRegister
 	Cacher_Update   []CacherRegister
 	Cacher_Logout   []CacherLogout
+	Cacher_Pay      []Pay
 }

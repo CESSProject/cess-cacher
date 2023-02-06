@@ -18,6 +18,8 @@ package chain
 
 import (
 	"cess-cacher/utils"
+	"encoding/hex"
+	"time"
 
 	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
 	"github.com/pkg/errors"
@@ -125,36 +127,38 @@ func (c *chainClient) GetMinerInfo() (CacherInfo, error) {
 
 func (c *chainClient) GetBill(hash types.Hash, bid string) (Bill, error) {
 	var bill Bill
-	block, err := c.api.RPC.Chain.GetBlock(hash)
+	events := CacheEventRecords{}
+	rawData, err := c.api.RPC.State.GetStorageRaw(c.keyEvents, hash)
 	if err != nil {
 		return bill, errors.Wrap(err, "get bill error")
 	}
-	for _, ext := range block.Block.Extrinsics {
-		args := parseArgs(ext.Method.Args, []int{128, 32, 32, 13, 128})
-		if types.Decode(args[0], &bill.BID) != nil || bill.BID != bid {
+	types.EventRecordsRaw(*rawData).DecodeEventRecords(c.metadata, &events)
+	if len(events.Cacher_Pay) <= 0 {
+		return bill, errors.Wrap(errors.New("event not found"), "get bill error")
+	}
+	pay := events.Cacher_Pay[0]
+	bill.Account, err = utils.EncodePublicKeyAsSubstrateAccount(pay.Acc[:])
+	if err != nil {
+		return bill, errors.Wrap(err, "get bill error")
+	}
+	bill.BID = bid
+	c.GetIncomeAccount()
+	for _, pBill := range pay.Bills {
+		if hex.EncodeToString(pBill.Id[:]) != bid {
 			continue
 		}
-		if types.Decode(args[1], &bill.FileHash) != nil ||
-			types.Decode(args[2], &bill.SliceHash) != nil ||
-			types.Decode(args[3], &bill.Expires) != nil ||
-			types.Decode(args[4], &bill.Amount) != nil {
-			continue
-		}
-		acc, err := utils.EncodePublicKeyAsSubstrateAccount(ext.Signature.Signer.AsID[:])
+		acc, err := utils.EncodePublicKeyAsCessAccount(pBill.To[:])
 		if err != nil {
 			return bill, errors.Wrap(err, "get bill error")
 		}
-		bill.Account = acc
+		if acc != c.GetIncomeAccount() {
+			return bill, errors.Wrap(errors.New("payee error"), "get bill error")
+		}
+		bill.FileHash = hex.EncodeToString(pBill.File_hash[:])
+		bill.SliceHash = hex.EncodeToString(pBill.Slice_hash[:])
+		bill.Expires = time.Now().Add(time.Duration(pBill.Expiration_time))
+		bill.Amount = pBill.Amount
 		return bill, nil
 	}
-	return bill, nil
-}
-
-func parseArgs(args []byte, lens []int) [][]byte {
-	res := make([][]byte, len(lens))
-	for i, l := range lens {
-		res[i] = args[:l]
-		args = args[l:]
-	}
-	return res
+	return bill, errors.Wrap(errors.New("bill not found"), "get bill error")
 }

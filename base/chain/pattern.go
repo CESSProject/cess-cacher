@@ -71,11 +71,12 @@ type Bill struct {
 }
 
 type BillOnChain struct {
-	BID       string
-	FileHash  string
-	SliceHash string
-	Expires   time.Time
-	Amount    types.U128
+	Id              [16]byte
+	To              types.AccountID
+	Amount          types.U128
+	File_hash       types.Hash
+	Slice_hash      types.Hash
+	Expiration_time uint64
 }
 
 // Backups

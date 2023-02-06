@@ -23,6 +23,7 @@ type MinerStats struct {
 }
 
 type FileStat struct {
+	Cached     bool     `json:"cached"`
 	Price      uint64   `json:"price"`
 	Size       uint64   `json:"size"`
 	ShardCount int      `josn:"shardCount"`
@@ -70,8 +71,10 @@ func QueryFileInfo(hash string) FileStat {
 	var stat FileStat
 	info, ok := cache.GetCacheHandle().QueryFile(hash)
 	if !ok {
+		//query info from chain
 		return stat
 	}
+	stat.Cached = true
 	stat.Price = uint64(info.Size) * config.GetConfig().BytePrice
 	stat.Size = uint64(info.Size)
 	stat.ShardCount = info.Num

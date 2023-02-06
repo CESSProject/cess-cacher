@@ -19,7 +19,7 @@ func NewRouter() *gin.Engine {
 	}))
 	//download file group
 	dowmloadGroup := router.Group("/download")
-	dowmloadGroup.GET("/:hash/:index", handle.DownloadHandler).Use(middleware.Auth())
+	dowmloadGroup.GET("/file", handle.DownloadHandler).Use(middleware.Auth())
 
 	//query group
 	query := router.Group("/query")
