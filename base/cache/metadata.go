@@ -92,10 +92,15 @@ func (c *Cache) LoadInCache(hash string, num int, size uint64) {
 		UsedCount:   1,
 		LastAccTime: time.Now(),
 	}
-	v, ok := c.hashMap.Load(hash)
-	if !ok || v.(FileInfo).Size != size {
+	if v, ok := c.hashMap.Load(hash); ok {
+		if v.(FileInfo).Size != size {
+			c.rw.Lock()
+			c.size = c.size - v.(FileInfo).Size + size
+			c.rw.Unlock()
+		}
+	} else {
 		c.rw.Lock()
-		c.size = c.size - v.(FileInfo).Size + size
+		c.size = c.size + size
 		c.rw.Unlock()
 	}
 	c.hashMap.Store(hash, info)
@@ -153,6 +158,9 @@ func (c *Cache) LoadMetadata() {
 	}
 	var size uint64
 	for k, v := range list {
+		if CheckBadFileAndDel(k) {
+			continue
+		}
 		c.hashMap.Store(k, v)
 		size += v.Size
 	}
@@ -162,7 +170,7 @@ func (c *Cache) LoadMetadata() {
 }
 
 func (c *Cache) SaveMetadata() error {
-	var list map[string]FileInfo
+	list := make(map[string]FileInfo)
 	c.hashMap.Range(func(key, value any) bool {
 		list[key.(string)] = value.(FileInfo)
 		return true

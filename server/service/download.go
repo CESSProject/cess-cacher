@@ -6,6 +6,7 @@ import (
 	"cess-cacher/config"
 	resp "cess-cacher/server/response"
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"sync"
@@ -49,7 +50,7 @@ func DownloadService(t Ticket) (string, resp.Error) {
 			tickets.Delete(t.BID)
 			return slicePath, resp.NewError(500, errors.Wrap(err, "download service error"))
 		}
-		duration := t.Size / uint64(cache.GetNetInfo().Upload)
+		duration := t.Size / uint64(cache.GetNetInfo().Upload+1)
 		slicePath = fmt.Sprintf("file %s is being cached,about %d s", t.FileHash, duration)
 		tickets.Delete(t.BID)
 		return slicePath, resp.NewError(0, nil)
@@ -68,7 +69,8 @@ func PraseTicketByBID(hash, bid string) (Ticket, error) {
 	if err != nil {
 		return ticket, errors.Wrap(err, "prase ticket error")
 	}
-	bill, err := chain.GetChainCli().GetBill(types.NewHash(b), bid)
+	//test chain
+	bill, err := chain.GetTestChainCli().GetBill(types.NewHash(b), bid)
 	if err != nil {
 		return ticket, errors.Wrap(err, "prase ticket error")
 	}
@@ -77,13 +79,11 @@ func PraseTicketByBID(hash, bid string) (Ticket, error) {
 		return ticket, errors.Wrap(err, "prase ticket error")
 	}
 	var size uint64
-	for _, s := range fmeta.Backups[0].Slice_info {
-		b := make([]byte, 64)
-		for i, v := range s.Slice_hash {
-			b[i] = byte(v)
-		}
-		if types.HexEncodeToString(b) == bill.SliceHash {
-			size = uint64(s.Shard_size)
+	shash := ""
+	for _, block := range fmeta.BlockInfo {
+		if string(block.BlockId[:])[36:] == bill.SliceHash {
+			size = uint64(block.BlockSize)
+			shash = string(block.BlockId[:])
 			break
 		}
 	}
@@ -93,9 +93,10 @@ func PraseTicketByBID(hash, bid string) (Ticket, error) {
 	ticket.BID = bill.BID
 	ticket.Account = bill.Account
 	ticket.FileHash = bill.FileHash
-	ticket.SliceHash = bill.SliceHash
+	ticket.SliceHash = shash
 	ticket.Expires = bill.Expires
 	ticket.Size = size
+	log.Println("expires time:", bill.Expires)
 	return ticket, nil
 }
 

@@ -51,7 +51,18 @@ type FileMetaInfo struct {
 	Index      types.U32
 	State      types.Bytes
 	UserBriefs []UserBrief
-	Backups    []Backup
+	//Names      []types.Bytes
+	BlockInfo []BlockInfo
+}
+
+// file block info
+type BlockInfo struct {
+	MinerId   types.U64
+	BlockSize types.U64
+	BlockNum  types.U32
+	BlockId   [68]types.U8
+	MinerIp   Ipv4Type
+	MinerAcc  types.AccountID
 }
 
 type UserBrief struct {
@@ -79,22 +90,6 @@ type BillOnChain struct {
 	Expiration_time uint64
 }
 
-// Backups
-type Backup struct {
-	Backup_index types.U8
-	State        types.Bool
-	Slice_info   []SliceInfo
-}
-
-// SliceInfo
-type SliceInfo struct {
-	Shard_id   SliceId
-	Slice_hash FileHash
-	Shard_size types.U64
-	Miner_ip   Ipv4Type
-	Miner_acc  types.AccountID
-}
-
 type Ipv4Type_Query struct {
 	Placeholder types.U8 //
 	Index       types.U8
@@ -102,10 +97,10 @@ type Ipv4Type_Query struct {
 	Port        types.U16
 }
 
-type IpAddress struct {
-	IPv4 Ipv4Type
-	IPv6 Ipv6Type
+type None struct {
+	Index types.U8
 }
+
 type Ipv4Type struct {
 	Index types.U8
 	Value [4]types.U8
@@ -127,6 +122,7 @@ type BucketInfo struct {
 
 // cacher info
 type CacherInfo struct {
-	Ip         IpAddress
-	Byte_price types.U128
+	Acc       types.AccountID
+	Ip        Ipv4Type
+	BytePrice types.U128
 }

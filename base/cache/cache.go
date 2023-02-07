@@ -25,6 +25,7 @@ type ICache interface {
 	TotalSize() uint64
 	QueryFile(hash string) (FileInfo, bool)
 	HitOrLoad(hash string) (bool, error)
+	GetFileDir() string
 }
 
 type CacheHandle struct {
@@ -34,6 +35,10 @@ type CacheHandle struct {
 
 func GetCacheHandle() ICache {
 	return handler
+}
+
+func (h CacheHandle) GetFileDir() string {
+	return FilesDir
 }
 
 func (h CacheHandle) HitOrLoad(hash string) (bool, error) {
@@ -137,7 +142,7 @@ func CheckAndCacheFile(hash string) (bool, error) {
 			return false, errors.Wrap(err, "check file error")
 		}
 		if fmeta.Size == types.U64(f.Size()) &&
-			num == len(fmeta.Backups[0].Slice_info) {
+			num >= (len(fmeta.BlockInfo)-len(fmeta.BlockInfo)/3) {
 			handler.LoadInCache(hash, num, uint64(f.Size()))
 			return false, nil
 		}
@@ -148,8 +153,7 @@ func CheckAndCacheFile(hash string) (bool, error) {
 
 func CheckBadFileAndDel(fid string) bool {
 	dir := path.Join(FilesDir, fid)
-	f, err := os.Stat(dir)
-	if err != nil {
+	if _, err := os.Stat(dir); err != nil {
 		return true
 	}
 	fmeta, err := chain.GetChainCli().GetFileMetaInfo(fid)
@@ -159,13 +163,9 @@ func CheckBadFileAndDel(fid string) bool {
 		}
 		return true
 	}
-	if f.Size() != int64(fmeta.Size) {
-		os.Remove(dir)
-		return true
-	}
 	if fs, err := os.ReadDir(dir); err != nil {
 		return true
-	} else if len(fs) != len(fmeta.Backups[0].Slice_info) {
+	} else if len(fs) < (len(fmeta.BlockInfo) - len(fmeta.BlockInfo)/3) {
 		os.Remove(dir)
 		return true
 	}

@@ -17,6 +17,7 @@
 package chain
 
 import (
+	"cess-cacher/logger"
 	"cess-cacher/utils"
 	"math/big"
 	"strconv"
@@ -30,7 +31,11 @@ import (
 func (c *chainClient) SubmitExtrinsic(method string,
 	callback func(events CacheEventRecords) bool, args ...any) (string, error) {
 
-	defer func() { recover() }()
+	defer func() {
+		if p := recover(); p != nil {
+			logger.Uld.Sugar().Error(p)
+		}
+	}()
 	var (
 		txhash string
 		ext    types.Extrinsic
@@ -115,7 +120,7 @@ func (c *chainClient) SubmitExtrinsic(method string,
 }
 
 func (c *chainClient) Register(ip, port string, price uint64) (string, error) {
-	info, err := NewCacherInfo(ip, port, price)
+	info, err := NewCacherInfo(c.IncomeAcc, ip, port, price)
 	if err != nil {
 		return "", errors.Wrap(err, "register cacher error")
 	}
@@ -130,7 +135,7 @@ func (c *chainClient) Register(ip, port string, price uint64) (string, error) {
 }
 
 func (c *chainClient) Update(ip, port string, price uint64) (string, error) {
-	info, err := NewCacherInfo(ip, port, price)
+	info, err := NewCacherInfo(c.IncomeAcc, ip, port, price)
 	if err != nil {
 		return "", errors.Wrap(err, "update cacher info error")
 	}
@@ -157,25 +162,32 @@ func (c *chainClient) Logout() (string, error) {
 	return txhash, errors.Wrap(err, "logout cacher error")
 }
 
-func NewCacherInfo(ip, port string, price uint64) (CacherInfo, error) {
+func NewCacherInfo(account, ip, port string, price uint64) (CacherInfo, error) {
 	var info CacherInfo
 	if !utils.IsIPv4(ip) {
 		return info, ERR_RPC_IP_FORMAT
 	}
-	info.Ip.IPv4.Index = 0
+	var ipv4 Ipv4Type
+	ipv4.Index = 0
 	ips := strings.Split(ip, ".")
-	for i := 0; i < len(info.Ip.IPv4.Value); i++ {
+	for i := 0; i < len(ipv4.Value); i++ {
 		tmp, err := strconv.Atoi(ips[i])
 		if err != nil {
 			return info, err
 		}
-		info.Ip.IPv4.Value[i] = types.U8(tmp)
+		ipv4.Value[i] = types.U8(tmp)
 	}
 	tmp, err := strconv.Atoi(port)
 	if err != nil {
 		return info, err
 	}
-	info.Ip.IPv4.Port = types.U16(tmp)
-	info.Byte_price = types.NewU128(*big.NewInt(int64(price)))
+	pubkey, err := utils.DecodePublicKeyOfCessAccount(account)
+	if err != nil {
+		return info, err
+	}
+	info.Acc = types.NewAccountID(pubkey)
+	ipv4.Port = types.U16(tmp)
+	info.Ip = ipv4
+	info.BytePrice = types.NewU128(*big.NewInt(int64(price)))
 	return info, nil
 }

@@ -18,8 +18,8 @@ func NewRouter() *gin.Engine {
 		resp.RespError(c, resp.NewError(http.StatusInternalServerError, err.(error)))
 	}))
 	//download file group
-	dowmloadGroup := router.Group("/download")
-	dowmloadGroup.GET("/file", handle.DownloadHandler).Use(middleware.Auth())
+	dowmloadGroup := router.Group("/download").Use(middleware.Auth())
+	dowmloadGroup.GET("/file", handle.DownloadHandler)
 
 	//query group
 	query := router.Group("/query")

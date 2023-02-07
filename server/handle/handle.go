@@ -5,6 +5,7 @@ import (
 	"cess-cacher/server/service"
 	"cess-cacher/utils"
 	"fmt"
+	"log"
 	"path"
 	"strings"
 
@@ -31,7 +32,8 @@ func DownloadHandler(c *gin.Context) {
 	if fname == "" {
 		fname = utils.GetRandomcode(64)
 	}
-	c.Writer.Header().Add("Content-Disposition", fmt.Sprintf("attachment; filename=%v", fname))
+	log.Println("filepath", res)
+	c.Writer.Header().Add("Content-Disposition", fmt.Sprintf("inline; filename=%v", fname))
 	c.Writer.Header().Add("Content-Type", "application/octet-stream")
 	c.File(res)
 }

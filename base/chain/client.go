@@ -42,6 +42,8 @@ type IChain interface {
 	//
 	GetBill(hash types.Hash, bid string) (Bill, error)
 	//
+	GetMinerInfo() (CacherInfo, error)
+	//
 	Register(ip, port string, price uint64) (string, error)
 	//
 	Update(ip, port string, price uint64) (string, error)
@@ -84,6 +86,29 @@ func InitChainClient(conf config.Config) error {
 	}
 	return nil
 }
+
+// test chain ...
+var testCli IChain
+
+func GetTestChainCli() IChain {
+	return testCli
+}
+
+func InitTestChainClient() error {
+	var err error
+	testCli, err = NewChainClient(
+		"ws://172.16.2.243:9944",
+		"plug increase image genius rabbit unable once sponsor tail castle wet fan",
+		"cXgP2nH3GkFweiAUcPFWJjxRdiScooTneMgdowKe6Lfe3hQQ8",
+		TimeOut_WaitBlock,
+	)
+	if err != nil {
+		return errors.Wrap(err, "init chain client error")
+	}
+	return nil
+}
+
+//
 
 func NewChainClient(rpcAddr, secret, incomeAcc string, t time.Duration) (IChain, error) {
 	var (

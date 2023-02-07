@@ -94,6 +94,9 @@ func (c *chainClient) GetFileMetaInfo(fid string) (FileMetaInfo, error) {
 	if err != nil {
 		return data, errors.Wrap(err, "get file metadata error")
 	}
+	if len(data.BlockInfo) == 0 || data.Size == 0 {
+		return data, errors.Wrap(errors.New("invalid file metadata"), "get file metadata error")
+	}
 	return data, nil
 }
 
@@ -113,11 +116,15 @@ func (c *chainClient) GetAccountInfo() (types.AccountInfo, error) {
 
 func (c *chainClient) GetMinerInfo() (CacherInfo, error) {
 	var info CacherInfo
-	err := c.GetStorageFromChain(
+	pubkey, err := utils.DecodePublicKeyOfCessAccount(c.IncomeAcc)
+	if err != nil {
+		return info, errors.Wrap(err, "get cacher info error")
+	}
+	err = c.GetStorageFromChain(
 		&info,
 		_CACHER,
 		_CACHER_CACHER,
-		[]byte(c.GetIncomeAccount()),
+		pubkey,
 	)
 	if err != nil {
 		return info, errors.Wrap(err, "get cacher info error")
@@ -155,8 +162,8 @@ func (c *chainClient) GetBill(hash types.Hash, bid string) (Bill, error) {
 			return bill, errors.Wrap(errors.New("payee error"), "get bill error")
 		}
 		bill.FileHash = hex.EncodeToString(pBill.File_hash[:])
-		bill.SliceHash = hex.EncodeToString(pBill.Slice_hash[:])
-		bill.Expires = time.Now().Add(time.Duration(pBill.Expiration_time))
+		bill.SliceHash = string(pBill.Slice_hash[:])
+		bill.Expires = time.Unix(int64(pBill.Expiration_time), 0)
 		bill.Amount = pBill.Amount
 		return bill, nil
 	}

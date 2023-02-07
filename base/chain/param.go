@@ -31,7 +31,7 @@ const (
 	// FileMap
 	_FILEMAP_FILEMETA = "File"
 	// Miner
-	_CACHER_CACHER = "Cacher"
+	_CACHER_CACHER = "Cachers"
 	_CACHER_BILL   = "Ticket"
 )
 

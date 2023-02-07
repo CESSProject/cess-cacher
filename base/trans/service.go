@@ -2,133 +2,93 @@ package trans
 
 import (
 	"cess-cacher/base/chain"
+	"cess-cacher/base/trans/tcp"
 	"cess-cacher/config"
 	"cess-cacher/logger"
+	"cess-cacher/utils"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
 
+	"github.com/CESSProject/go-keyring"
 	"github.com/pkg/errors"
 )
 
-// Download files from cess storage service
-func DownloadFile(fid, dir string) error {
+func DownloadFile(fid, filesDir string) error {
 	// file meta info
 	fmeta, err := chain.GetChainCli().GetFileMetaInfo(fid)
 	if err != nil {
-		logger.Uld.Sugar().Errorf("get file %s metadata error:%v\n", fid, err)
-		if err.Error() == chain.ERR_Empty {
-			logger.Uld.Sugar().Errorf("file %s not found on chain.\n", fid)
-		}
-		return errors.Wrap(err, "download file from miner error")
+		err = errors.Wrap(err, "get file meta info error")
+		return errors.Wrap(err, "download file error")
 	}
 
-	if string(fmeta.State) != chain.FILE_STATE_ACTIVE {
-		return errors.Wrap(errors.New("file is not ready"), "download file from miner error")
+	if _, err := os.Stat(filesDir); err != nil {
+		if err = os.MkdirAll(filesDir, 0755); err != nil {
+			return errors.Wrap(err, "download file error")
+		}
 	}
-	var fsize int64 = SIZE_SLICE
-	for j := 0; j < len(fmeta.Backups[0].Slice_info); j++ {
-		for i := 0; i < len(fmeta.Backups); i++ {
-			// Download the file from the scheduler service
-			fname := filepath.Join(dir, string(fmeta.Backups[i].Slice_info[j].Slice_hash[:]))
-			mip := fmt.Sprintf("%d.%d.%d.%d:%d",
-				fmeta.Backups[i].Slice_info[j].Miner_ip.Value[0],
-				fmeta.Backups[i].Slice_info[j].Miner_ip.Value[1],
-				fmeta.Backups[i].Slice_info[j].Miner_ip.Value[2],
-				fmeta.Backups[i].Slice_info[j].Miner_ip.Value[3],
-				fmeta.Backups[i].Slice_info[j].Miner_ip.Port,
-			)
-			if (j + 1) == len(fmeta.Backups[i].Slice_info) {
-				fsize = int64(fmeta.Size % SIZE_SLICE)
-			}
-			if err = DownloadFromStorage(fname, fsize, mip); err != nil {
-				logger.Uld.Sugar().Errorf("downloading the %dth shard of the file %s error: %v", i, fid, err)
-				if (i + 1) == len(fmeta.Backups) {
-					return errors.Wrap(err, "download file from miner error")
-				}
-				continue
-			}
+	r := len(fmeta.BlockInfo) / 3
+	d := len(fmeta.BlockInfo) - r
+	down_count := 0
+	for i := 0; i < len(fmeta.BlockInfo); i++ {
+		fname := filepath.Join(filesDir, string(fmeta.BlockInfo[i].BlockId[:]))
+		if len(fmeta.BlockInfo) == 1 {
+			fname = fname[:(len(fname) - 4)]
+		}
+		mip := fmt.Sprintf("%d.%d.%d.%d:%d",
+			fmeta.BlockInfo[i].MinerIp.Value[0],
+			fmeta.BlockInfo[i].MinerIp.Value[1],
+			fmeta.BlockInfo[i].MinerIp.Value[2],
+			fmeta.BlockInfo[i].MinerIp.Value[3],
+			fmeta.BlockInfo[i].MinerIp.Port,
+		)
+		err = downloadFromStorage(fname, int64(fmeta.BlockInfo[i].BlockSize), mip, filesDir)
+		if err != nil {
+			logger.Uld.Sugar().Error(errors.Wrap(err, "download file error"))
+		} else {
+			down_count++
+		}
+		if down_count >= d {
+			break
 		}
 	}
 	return nil
 }
 
-func DownloadFromStorage(fpath string, fsize int64, mip string) error {
+// Download files from cess storage service
+func downloadFromStorage(fpath string, fsize int64, mip string, dir string) error {
 	fsta, err := os.Stat(fpath)
 	if err == nil {
 		if fsta.Size() == fsize {
 			return nil
-		} else if fsta.Size() > fsize {
+		} else {
 			os.Remove(fpath)
 		}
 	}
 
-	conTcp, err := dialTcpServer(mip)
+	msg := utils.GetRandomcode(16)
+
+	kr, _ := keyring.FromURI(config.GetConfig().AccountSeed, keyring.NetSubstrate{})
+	// sign message
+	sign, err := kr.Sign(kr.SigningContext([]byte(msg)))
 	if err != nil {
-		logger.Uld.Sugar().Errorf("dial %v error: %v", mip, err)
 		return err
 	}
 
-	token, err := AuthReq(conTcp, config.GetConfig().AccountSeed)
+	tcpAddr, err := net.ResolveTCPAddr("tcp", mip)
 	if err != nil {
-		logger.Uld.Sugar().Errorf("get request token error: %v", err)
 		return err
 	}
 
-	return DownReq(conTcp, token, fpath, fsize)
-}
-
-func dialTcpServer(address string) (*net.TCPConn, error) {
-	tcpAddr, err := net.ResolveTCPAddr("tcp", address)
+	conTcp, err := net.DialTCP("tcp", nil, tcpAddr)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	dialer := net.Dialer{Timeout: Tcp_Dial_Timeout}
-	netCon, err := dialer.Dial("tcp", tcpAddr.String())
+	srv := tcp.NewClient(tcp.NewTcp(conTcp), dir, nil)
+	pubkey, err := utils.DecodePublicKeyOfCessAccount(config.GetConfig().AccountID)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	conTcp, ok := netCon.(*net.TCPConn)
-	if !ok {
-		conTcp.Close()
-		return nil, errors.New("network conversion failed")
-	}
-	return conTcp, nil
+	return srv.RecvFile(filepath.Base(fpath), fsize, pubkey, []byte(msg), sign[:])
 }
-
-// func copyFile(src, dst string, length int64) error {
-// 	srcfile, err := os.OpenFile(src, os.O_RDONLY, os.ModePerm)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer srcfile.Close()
-// 	dstfile, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer dstfile.Close()
-
-// 	var buf = make([]byte, 64*1024)
-// 	var count int64
-// 	for {
-// 		n, err := srcfile.Read(buf)
-// 		if err != nil && err != io.EOF {
-// 			return err
-// 		}
-// 		if n == 0 {
-// 			break
-// 		}
-// 		count += int64(n)
-// 		if count < length {
-// 			dstfile.Write(buf[:n])
-// 		} else {
-// 			tail := count - length
-// 			if n >= int(tail) {
-// 				dstfile.Write(buf[:(n - int(tail))])
-// 			}
-// 		}
-// 	}
-
-// 	return nil
-// }

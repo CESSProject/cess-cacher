@@ -31,7 +31,7 @@ func InitLogger() {
 			log.Printf("\x1b[%dm[err]\x1b[0m %v\n", 41, err)
 			os.Exit(1)
 		}
-		err = os.MkdirAll(LogPath, os.ModeDir)
+		err = os.MkdirAll(LogPath, 0755)
 		if err != nil {
 			log.Printf("\x1b[%dm[err]\x1b[0m %v\n", 41, err)
 			os.Exit(1)

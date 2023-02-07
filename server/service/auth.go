@@ -48,7 +48,7 @@ func GenerateToken(hash, bid string, sign []byte) (string, resp.Error) {
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	stoken, err = token.SignedString(key)
+	stoken, err = token.SignedString([]byte(key))
 	if err != nil {
 		return stoken, resp.NewError(500, errors.Wrap(err, "generate token error"))
 	}
@@ -57,7 +57,7 @@ func GenerateToken(hash, bid string, sign []byte) (string, resp.Error) {
 
 func PraseToken(tokenStr string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(t *jwt.Token) (interface{}, error) {
-		return key, nil
+		return []byte(key), nil
 	})
 	if err != nil {
 		return nil, err

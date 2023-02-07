@@ -23,15 +23,18 @@ func Auth() gin.HandlerFunc {
 				errors.New("authorization field in header cannot be found"),
 			))
 			c.Abort()
+			return
 		}
 		jwtStr := strings.TrimPrefix(bearer, BEARER_PREFIX)
 		claims, err := service.PraseToken(jwtStr)
-		if err != nil {
+		if err != nil || claims == nil {
 			resp.RespError(c, resp.NewError(http.StatusUnauthorized, err))
 			c.Abort()
+			return
 		}
 		if !claims.VerifyExpiresAt(time.Now(), true) {
 			c.Abort()
+			return
 		}
 		c.Set("ticket", claims.Ticket)
 		c.Next()
