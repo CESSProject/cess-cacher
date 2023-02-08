@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,12 +15,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-const FLASH_FILE_TIME = time.Minute
-const DEFAULT_QUEUE_SIZE = 512
+const (
+	FLASH_FILE_TIME      = time.Minute
+	DEFAULT_QUEUE_SIZE   = 512
+	CLEAR_FAILEDMAP_TIME = time.Hour * 6
+)
 
 type FileInfo struct {
 	Size        uint64
-	Num         int
 	LoadTime    time.Time
 	UsedCount   int
 	LastAccTime time.Time
@@ -37,6 +40,7 @@ type Cache struct {
 	size       uint64
 	delQueue   *HashQueue
 	cacheQueue *HashQueue
+	failedMap  sync.Map
 }
 
 func NewCache(qlen int) *Cache {
@@ -46,6 +50,32 @@ func NewCache(qlen int) *Cache {
 	}
 	cache.LoadMetadata()
 	return cache
+}
+
+func (c *Cache) AddFailedFile(shash string) {
+	if count, ok := c.failedMap.LoadOrStore(shash, int(1)); ok {
+		c.failedMap.Store(shash, count.(int)+1)
+	}
+}
+
+func (c *Cache) DelFailedFile(shash string) {
+	c.failedMap.Delete(shash)
+}
+
+func (c *Cache) LoadFailedFile(shash string) (int, bool) {
+	v, ok := c.failedMap.Load(shash)
+	return v.(int), ok
+}
+
+func (c *Cache) ClearFailedMap(interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	for range ticker.C {
+		c.failedMap.Range(func(key, value any) bool {
+			c.failedMap.Delete(key)
+			return true
+		})
+	}
+
 }
 
 func (c *Cache) TotalSize() uint64 {
@@ -81,13 +111,12 @@ func (c *Cache) QueryFile(hash string) (FileInfo, bool) {
 	}
 }
 
-func (c *Cache) LoadInCache(hash string, num int, size uint64) {
-	if num <= 0 || size <= 0 {
+func (c *Cache) LoadInCache(hash string, size uint64) {
+	if size <= 0 {
 		return
 	}
 	info := FileInfo{
 		Size:        size,
-		Num:         num,
 		LoadTime:    time.Now(),
 		UsedCount:   1,
 		LastAccTime: time.Now(),
@@ -158,7 +187,8 @@ func (c *Cache) LoadMetadata() {
 	}
 	var size uint64
 	for k, v := range list {
-		if CheckBadFileAndDel(k) {
+		paths := strings.Split(k, "-")
+		if CheckBadFileAndDel(paths[0], paths[1]) {
 			continue
 		}
 		c.hashMap.Store(k, v)
@@ -194,30 +224,37 @@ func (c *Cache) FlashMetadataFile() {
 }
 
 func (c *Cache) CacheFileServer() {
+	go c.ClearFailedMap(CLEAR_FAILEDMAP_TIME)
+	lockMap := sync.Map{}
 	for h := range c.cacheQueue.GetQueue() {
 		hash := h
-		dir := path.Join(FilesDir, hash)
+		paths := strings.Split(hash, "-")
+		dir := path.Join(FilesDir, paths[0])
 		if _, err := os.Stat(dir); err != nil {
 			if err = os.Mkdir(dir, 0755); err != nil {
 				continue
 			}
+		}
+		if _, ok := lockMap.Load(hash); ok {
+			continue
+		}
+		if _, err := os.Stat(path.Join(dir, paths[1])); err != nil {
 			ants.Submit(func() {
-				err := trans.DownloadFile(hash, dir)
+				lockMap.Store(hash, struct{}{})
+				defer lockMap.Delete(hash)
+				err := trans.DownloadFile(paths[0], dir, paths[1])
 				if err != nil {
+					c.AddFailedFile(paths[1])
 					logger.Uld.Sugar().Errorf("download file %s from storage error:%v.\n", hash, err)
-					return
-				}
-				num, err := utils.GetFileNum(dir)
-				if err != nil {
-					logger.Uld.Sugar().Errorf("get slice number of file %s error:%v.\n", hash, err)
 					return
 				}
 				size, err := utils.GetDirSize(dir)
 				if err != nil {
+					c.AddFailedFile(paths[1])
 					logger.Uld.Sugar().Errorf("get size of file %s error:%v.\n", hash, err)
 					return
 				}
-				c.LoadInCache(hash, num, size)
+				c.LoadInCache(hash, size)
 			})
 		}
 	}

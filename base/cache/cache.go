@@ -7,8 +7,8 @@ import (
 	"cess-cacher/utils"
 	"os"
 	"path"
+	"strings"
 
-	"github.com/centrifuge/go-substrate-rpc-client/v4/types"
 	"github.com/pkg/errors"
 )
 
@@ -17,8 +17,6 @@ var FilePath = "./cache/metadata.json"
 var handler CacheHandle
 
 type ICache interface {
-	UpdateResponseTime(d int64) bool
-	GetResponseTime() int64
 	GetCacheStats() Stat
 	FindHashs(hash ...string) []string
 	GetHashList() []string
@@ -26,6 +24,7 @@ type ICache interface {
 	QueryFile(hash string) (FileInfo, bool)
 	HitOrLoad(hash string) (bool, error)
 	GetFileDir() string
+	LoadFailedFile(shash string) (int, bool)
 }
 
 type CacheHandle struct {
@@ -104,10 +103,9 @@ func initMinerInfo() {
 	//init and update net info
 	go UpdateNetStats()
 	cstat = &CacheStats{
-		hits:     new(uint64),
-		misses:   new(uint64),
-		errs:     new(uint64),
-		respTime: new(int64),
+		hits:   new(uint64),
+		misses: new(uint64),
+		errs:   new(uint64),
 	}
 }
 
@@ -127,9 +125,10 @@ func initStrategy(conf config.Config, c *Cache) error {
 }
 
 func CheckAndCacheFile(hash string) (bool, error) {
-	dir := path.Join(FilesDir, hash)
-	if f, err := os.Stat(dir); err == nil {
-		fmeta, err := chain.GetChainCli().GetFileMetaInfo(hash)
+	paths := strings.Split(hash, "-")
+	file := path.Join(FilesDir, paths[0], paths[1])
+	if f, err := os.Stat(file); err == nil {
+		fmeta, err := chain.GetChainCli().GetFileMetaInfo(paths[0])
 		if err != nil {
 			logger.Uld.Sugar().Errorf("check file %s error:%v", hash, err)
 			if err.Error() != chain.ERR_Empty {
@@ -137,13 +136,15 @@ func CheckAndCacheFile(hash string) (bool, error) {
 			}
 			return false, errors.Wrap(err, "check file error")
 		}
-		num, err := utils.GetFileNum(dir)
-		if err != nil {
-			return false, errors.Wrap(err, "check file error")
+		var size int64
+		for _, block := range fmeta.BlockInfo {
+			if string(block.BlockId[:]) == paths[1] {
+				size = int64(block.BlockSize)
+				break
+			}
 		}
-		if fmeta.Size == types.U64(f.Size()) &&
-			num >= (len(fmeta.BlockInfo)-len(fmeta.BlockInfo)/3) {
-			handler.LoadInCache(hash, num, uint64(f.Size()))
+		if size == f.Size() {
+			handler.LoadInCache(hash, uint64(f.Size()))
 			return false, nil
 		}
 	}
@@ -151,23 +152,29 @@ func CheckAndCacheFile(hash string) (bool, error) {
 	return true, nil
 }
 
-func CheckBadFileAndDel(fid string) bool {
-	dir := path.Join(FilesDir, fid)
-	if _, err := os.Stat(dir); err != nil {
+func CheckBadFileAndDel(fid, sid string) bool {
+	file := path.Join(FilesDir, fid, sid)
+	var size int64
+	if f, err := os.Stat(file); err != nil {
 		return true
+	} else {
+		size = f.Size()
 	}
 	fmeta, err := chain.GetChainCli().GetFileMetaInfo(fid)
 	if err != nil {
 		if err.Error() == chain.ERR_Empty {
-			os.Remove(dir)
+			os.Remove(file)
 		}
 		return true
 	}
-	if fs, err := os.ReadDir(dir); err != nil {
-		return true
-	} else if len(fs) < (len(fmeta.BlockInfo) - len(fmeta.BlockInfo)/3) {
-		os.Remove(dir)
-		return true
+	for _, block := range fmeta.BlockInfo {
+		if string(block.BlockId[:]) != sid {
+			continue
+		}
+		if int64(block.BlockSize) != size {
+			os.Remove(file)
+			return true
+		}
 	}
 	return false
 }

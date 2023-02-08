@@ -1,22 +1,19 @@
 package service
 
 import (
+	"bytes"
 	"cess-cacher/base/cache"
 	resp "cess-cacher/server/response"
 	"cess-cacher/utils"
-	"time"
+	"crypto/aes"
+	"crypto/cipher"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/btcsuite/btcutil/base58"
+
 	"github.com/pkg/errors"
 )
 
-var key string
-var ValidDuration = time.Minute * 30
-
-type Claims struct {
-	Ticket Ticket `json:"ticket,omitempty"`
-	jwt.RegisteredClaims
-}
+var aesHandle AES
 
 type AuthReq struct {
 	Hash string `json:"hash"`
@@ -25,63 +22,87 @@ type AuthReq struct {
 }
 
 func GenerateToken(hash, bid string, sign []byte) (string, resp.Error) {
-	var stoken string
-	//check order
+	var token string
 	t, err := PraseTicketByBID(hash, bid)
 	if err != nil {
-		return stoken, resp.NewError(400, errors.Wrap(err, "generate token error"))
+		return token, resp.NewError(400, errors.Wrap(err, "generate token error"))
 	}
 	if !utils.VerifySign(t.Account, []byte(hash+bid), sign) {
-		return stoken, resp.NewError(400, errors.Wrap(err, "generate token error"))
+		return token, resp.NewError(400, errors.Wrap(err, "generate token error"))
 	}
-	//data preheating: prepare the files not downloaded
-	cache.GetCacheHandle().HitOrLoad(t.FileHash)
-	if key == "" {
-		key = utils.GetRandomcode(32)
+	if ticketBeUsed(bid, t.Expires) {
+		err := errors.New("invalid bill")
+		return token, resp.NewError(400, errors.Wrap(err, "generate token error"))
 	}
-	now := time.Now()
-	claims := Claims{
-		Ticket: t,
-		RegisteredClaims: jwt.RegisteredClaims{
-			NotBefore: jwt.NewNumericDate(now.Add(-30)),
-			ExpiresAt: jwt.NewNumericDate(now.Add(ValidDuration)),
-		},
+	if aesHandle.Enc == nil {
+		aesHandle.Enc = []byte(utils.GetRandomcode(32))
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	stoken, err = token.SignedString([]byte(key))
+	cipText, err := aesHandle.SymmetricEncrypt([]byte(hash + "-" + bid))
 	if err != nil {
-		return stoken, resp.NewError(500, errors.Wrap(err, "generate token error"))
+		return token, resp.NewError(400, errors.Wrap(err, "generate token error"))
 	}
-	return stoken, nil
+	token = base58.Encode(cipText)
+	//data preheating: prepare the files not downloaded
+	cache.GetCacheHandle().HitOrLoad(t.FileHash + "-" + t.SliceHash)
+	deleteTicket(bid)
+	return token, nil
 }
 
-func PraseToken(tokenStr string) (*Claims, error) {
-	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(t *jwt.Token) (interface{}, error) {
-		return []byte(key), nil
-	})
+type AES struct {
+	Enc []byte
+}
+
+type AESHandle interface {
+	SymmetricEncrypt(origData []byte) ([]byte, error)
+	SymmetricDecrypt(ciphertext []byte) ([]byte, error)
+}
+
+func GetAESHandle() AESHandle {
+	if aesHandle.Enc == nil {
+		aesHandle.Enc = []byte(utils.GetRandomcode(32))
+	}
+	return aesHandle
+}
+
+func (method AES) SymmetricEncrypt(origData []byte) ([]byte, error) {
+	block, err := aes.NewCipher(method.Enc)
 	if err != nil {
 		return nil, err
 	}
-	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
-		return claims, nil
-	}
-	return nil, errors.New("token invalid")
+
+	blockSize := block.BlockSize()
+	origData = PKCS5Padding(origData, blockSize)
+	blockMode := cipher.NewCBCEncrypter(block, method.Enc[:blockSize])
+	crypted := make([]byte, len(origData))
+	blockMode.CryptBlocks(crypted, origData)
+	return crypted, nil
 }
 
-func ReFreshToken(tokenStr string) (string, error) {
-	jwt.TimeFunc = func() time.Time {
-		return time.Unix(0, 0)
-	}
-	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(t *jwt.Token) (interface{}, error) {
-		return key, nil
-	})
+func PKCS5Padding(ciphertext []byte, blockSize int) []byte {
+	padding := blockSize - len(ciphertext)%blockSize
+	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
+	return append(ciphertext, padtext...)
+}
+
+func (method AES) SymmetricDecrypt(ciphertext []byte) ([]byte, error) {
+	block, err := aes.NewCipher(method.Enc)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
-		jwt.TimeFunc = time.Now
-		claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(ValidDuration))
-		return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(key)
+
+	blockSize := block.BlockSize()
+	blockMode := cipher.NewCBCDecrypter(block, method.Enc[:blockSize])
+	origData := make([]byte, len(ciphertext))
+	blockMode.CryptBlocks(origData, ciphertext)
+	origData = PKCS5UnPadding(origData)
+	return origData, nil
+}
+
+func PKCS5UnPadding(origData []byte) []byte {
+	length := len(origData)
+	unpadding := int(origData[length-1])
+	if (length - unpadding) < 0 {
+		return nil
 	}
-	return "", nil
+	return origData[:(length - unpadding)]
 }

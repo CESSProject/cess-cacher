@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/panjf2000/ants/v2"
@@ -111,31 +112,29 @@ func Reorganizate(c *Cache) error {
 		return errors.Wrap(err, "reorganizate cache error")
 	}
 	for _, dir := range dirs {
-		if CheckBadFileAndDel(dir.Name()) {
+		if !dir.IsDir() {
 			continue
 		}
-		if _, ok := c.hashMap.Load(dir.Name()); !dir.IsDir() || ok {
-			continue
-		}
-		subDirs, err := os.ReadDir(path.Join(FilesDir, dir.Name()))
+		df, err := os.ReadDir(path.Join(FilesDir, dir.Name()))
 		if err != nil {
-			logger.Uld.Sugar().Errorf("read dir %s error:%v.\n", dir.Name(), err)
-			continue
+			return errors.Wrap(err, "reorganizate cache error")
 		}
-		info := FileInfo{}
-		for _, file := range subDirs {
-			if file.IsDir() {
+		for _, f := range df {
+			if _, ok := c.hashMap.Load(dir.Name() + "-" + f.Name()); dir.IsDir() || ok {
 				continue
 			}
-			if i, err := file.Info(); err == nil {
-				info.Size += uint64(i.Size())
-				info.Num++
+			if CheckBadFileAndDel(dir.Name(), f.Name()) {
+				continue
 			}
+			info := FileInfo{}
+			if i, err := f.Info(); err == nil {
+				info.Size = uint64(i.Size())
+			}
+			info.LoadTime = time.Now()
+			info.LastAccTime = time.Now()
+			info.UsedCount = 1
+			c.hashMap.Store(dir.Name(), info)
 		}
-		info.LoadTime = time.Now()
-		info.LastAccTime = time.Now()
-		info.UsedCount = 1
-		c.hashMap.Store(dir.Name(), info)
 	}
 	return nil
 }
@@ -146,8 +145,9 @@ func CleanCacheServer(c *Cache) {
 		if _, ok := c.hashMap.Load(hash); ok {
 			continue
 		}
+		paths := strings.Split(hash, "-")
 		err := ants.Submit(func() {
-			if err := os.Remove(path.Join(FilesDir, hash)); err != nil {
+			if err := os.Remove(path.Join(FilesDir, paths[0], paths[1])); err != nil {
 				logger.Uld.Sugar().Errorf("reomve cache file %s error:%v.\n", hash, err)
 				c.delQueue.Insert(hash)
 				return

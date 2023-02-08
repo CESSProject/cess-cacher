@@ -3,40 +3,42 @@ package middleware
 import (
 	resp "cess-cacher/server/response"
 	"cess-cacher/server/service"
-
 	"errors"
-	"net/http"
 	"strings"
-	"time"
+
+	"github.com/btcsuite/btcutil/base58"
 
 	"github.com/gin-gonic/gin"
 )
 
-const BEARER_PREFIX = "Bearer "
-
 func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		bearer := c.Request.Header.Get("Authorization")
-		if bearer == "" {
-			resp.RespError(c, resp.NewError(
-				http.StatusUnauthorized,
-				errors.New("authorization field in header cannot be found"),
-			))
+		token := c.Param("token")
+		if token == "" {
+			resp.RespError(c, resp.NewError(400, errors.New("bad token")))
 			c.Abort()
 			return
 		}
-		jwtStr := strings.TrimPrefix(bearer, BEARER_PREFIX)
-		claims, err := service.PraseToken(jwtStr)
-		if err != nil || claims == nil {
-			resp.RespError(c, resp.NewError(http.StatusUnauthorized, err))
+		bytes := base58.Decode(token)
+		pbs, err := service.GetAESHandle().SymmetricDecrypt(bytes)
+		if err != nil {
+			resp.RespError(c, resp.NewError(400, err))
 			c.Abort()
 			return
 		}
-		if !claims.VerifyExpiresAt(time.Now(), true) {
+		params := strings.Split(string(pbs), "-")
+		if len(params) < 2 {
+			resp.RespError(c, resp.NewError(400, errors.New("bad token")))
 			c.Abort()
 			return
 		}
-		c.Set("ticket", claims.Ticket)
+		ticket, err := service.PraseTicketByBID(params[0], params[1])
+		if err != nil {
+			resp.RespError(c, resp.NewError(500, err))
+			c.Abort()
+			return
+		}
+		c.Set("ticket", ticket)
 		c.Next()
 	}
 }

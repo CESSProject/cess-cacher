@@ -35,6 +35,10 @@ func InitTickets() {
 	}
 }
 
+func deleteTicket(key string) {
+	tickets.Delete(key)
+}
+
 func DownloadService(t Ticket) (string, resp.Error) {
 	var slicePath string
 	if time.Since(t.Expires) >= 0 {
@@ -45,13 +49,21 @@ func DownloadService(t Ticket) (string, resp.Error) {
 		err := errors.New("The ticket has been used")
 		return slicePath, resp.NewError(400, errors.Wrap(err, "download service error"))
 	}
-	if ok, err := cache.GetCacheHandle().HitOrLoad(t.FileHash); !ok {
+	if ok, err := cache.GetCacheHandle().HitOrLoad(t.FileHash + "-" + t.SliceHash); !ok {
 		if err != nil {
 			tickets.Delete(t.BID)
 			return slicePath, resp.NewError(500, errors.Wrap(err, "download service error"))
 		}
-		duration := t.Size / uint64(cache.GetNetInfo().Upload+1)
-		slicePath = fmt.Sprintf("file %s is being cached,about %d s", t.FileHash, duration)
+		if count, ok := cache.GetCacheHandle().LoadFailedFile(t.SliceHash); ok && count >= 1 {
+			err = errors.New("cache file failed,remote miner offline or refused")
+			tickets.Delete(t.BID)
+			return slicePath, resp.NewError(500, errors.Wrap(err, "download service error"))
+		}
+		progress, ect := cache.DownloadProgressBar(t.FileHash, t.SliceHash, t.Size)
+		slicePath = fmt.Sprintf(
+			"file %s is being cached %2.2f %%,it will take about %d s",
+			t.SliceHash, progress, ect,
+		)
 		tickets.Delete(t.BID)
 		return slicePath, resp.NewError(0, nil)
 	}

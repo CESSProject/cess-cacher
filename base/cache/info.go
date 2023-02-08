@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"path"
 	"runtime"
 	"strconv"
 	"strings"
@@ -41,11 +42,10 @@ type NetStats struct {
 }
 
 type CacheStats struct {
-	once     sync.Once
-	hits     *uint64
-	misses   *uint64
-	errs     *uint64
-	respTime *int64
+	once   sync.Once
+	hits   *uint64
+	misses *uint64
+	errs   *uint64
 }
 
 type Stat struct {
@@ -54,7 +54,7 @@ type Stat struct {
 	ErrRate  float32 `json:"errRate"`
 }
 
-const FLASH_TIME = time.Hour * 3
+const FLASH_TIME = time.Hour * 12
 
 var (
 	netInfo NetStats
@@ -72,17 +72,6 @@ func (s *CacheStats) Miss(c uint64) {
 
 func (s *CacheStats) Error(c uint64) {
 	atomic.AddUint64(s.errs, c)
-}
-
-func (s *CacheStats) UpdateResponseTime(d int64) bool {
-	s.once.Do(func() {
-		atomic.AddInt64(s.respTime, d)
-	})
-	return atomic.CompareAndSwapInt64(s.respTime, *s.respTime, (*s.respTime+d)/2)
-}
-
-func (s CacheStats) GetResponseTime() int64 {
-	return atomic.LoadInt64(s.respTime)
 }
 
 func (s CacheStats) GetCacheStats() Stat {
@@ -202,5 +191,18 @@ func UpdateNetStats() {
 		rwLock.Lock()
 		netInfo = stat
 		rwLock.Unlock()
+	}
+}
+
+func DownloadProgressBar(fhash, shash string, size uint64) (float64, int64) {
+	fpath := path.Join(FilesDir, fhash, shash)
+	if f, err := os.Stat(fpath); err != nil {
+		return 0, int64(size) / int64(GetNetInfo().Upload+1)
+	} else {
+		//download progress
+		progress := float64(f.Size()) / float64(size+1)
+		//estimated completion time
+		ect := int64(size-uint64(f.Size())) / int64(GetNetInfo().Upload+1)
+		return progress, ect
 	}
 }
