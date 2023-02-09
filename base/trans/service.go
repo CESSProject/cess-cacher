@@ -22,7 +22,7 @@ func DownloadFile(fid, filesDir, shash string) error {
 		return errors.Wrap(err, "download file error")
 	}
 	if _, err := os.Stat(filesDir); err != nil {
-		if err = os.MkdirAll(filesDir, 0755); err != nil {
+		if err = os.MkdirAll(filesDir, 0777); err != nil {
 			return errors.Wrap(err, "download file error")
 		}
 	}

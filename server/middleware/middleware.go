@@ -3,6 +3,7 @@ package middleware
 import (
 	resp "cess-cacher/server/response"
 	"cess-cacher/server/service"
+	"cess-cacher/utils"
 	"errors"
 	"strings"
 
@@ -32,7 +33,9 @@ func Auth() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		ticket, err := service.PraseTicketByBID(params[0], params[1])
+		hash := utils.Base58ToHexString(params[0], true)
+		bid := utils.Base58ToHexString(params[1], false)
+		ticket, err := service.PraseTicketByBID(hash, bid)
 		if err != nil {
 			resp.RespError(c, resp.NewError(500, err))
 			c.Abort()

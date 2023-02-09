@@ -37,7 +37,15 @@ func GenerateToken(hash, bid string, sign []byte) (string, resp.Error) {
 	if aesHandle.Enc == nil {
 		aesHandle.Enc = []byte(utils.GetRandomcode(32))
 	}
-	cipText, err := aesHandle.SymmetricEncrypt([]byte(hash + "-" + bid))
+	hash58, err := utils.HexStringToBase58(hash)
+	if err != nil {
+		return token, resp.NewError(400, errors.Wrap(err, "generate token error"))
+	}
+	bid58, err := utils.HexStringToBase58(bid)
+	if err != nil {
+		return token, resp.NewError(400, errors.Wrap(err, "generate token error"))
+	}
+	cipText, err := aesHandle.SymmetricEncrypt([]byte(hash58 + "-" + bid58))
 	if err != nil {
 		return token, resp.NewError(400, errors.Wrap(err, "generate token error"))
 	}

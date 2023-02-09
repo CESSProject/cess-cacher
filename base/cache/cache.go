@@ -66,7 +66,7 @@ func InitCache(conf config.Config) error {
 		FilePath = path.Join(conf.CacheDir, "metadata.json")
 	}
 	if _, err := os.Stat(FilesDir); err != nil {
-		if err = os.MkdirAll(FilesDir, 0755); err != nil {
+		if err = os.MkdirAll(FilesDir, 0777); err != nil {
 			return errors.Wrap(err, "init cache error")
 		}
 	}
@@ -84,11 +84,15 @@ func InitCache(conf config.Config) error {
 	if err != nil {
 		return errors.Wrap(err, "init strategy error")
 	}
-	usedSize, err := utils.GetDirSize(FilesDir)
+	usedSize, err := utils.DirSize(FilesDir)
 	if err != nil {
 		return errors.Wrap(err, "init strategy error")
 	}
 	MaxCacheSize = stat.Available - usedSize
+	setSize := config.GetConfig().MaxCacheSize
+	if setSize > 0 && setSize < MaxCacheSize {
+		MaxCacheSize = config.GetConfig().MaxCacheSize
+	}
 	qlen := MaxCacheSize / (512 * 1024 * 1024)
 	handler = CacheHandle{
 		Cache:      NewCache(int(qlen)),

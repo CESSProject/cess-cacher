@@ -3,7 +3,6 @@ package cache
 import (
 	"cess-cacher/base/trans"
 	"cess-cacher/logger"
-	"cess-cacher/utils"
 	"encoding/json"
 	"os"
 	"path"
@@ -64,6 +63,9 @@ func (c *Cache) DelFailedFile(shash string) {
 
 func (c *Cache) LoadFailedFile(shash string) (int, bool) {
 	v, ok := c.failedMap.Load(shash)
+	if !ok {
+		return 0, ok
+	}
 	return v.(int), ok
 }
 
@@ -133,6 +135,15 @@ func (c *Cache) LoadInCache(hash string, size uint64) {
 		c.rw.Unlock()
 	}
 	c.hashMap.Store(hash, info)
+}
+
+func (c *Cache) Delete(hash string) {
+	c.rw.Lock()
+	defer c.rw.Unlock()
+	v, ok := c.hashMap.LoadAndDelete(hash)
+	if ok {
+		c.size -= v.(FileInfo).Size
+	}
 }
 
 func NewQueue(size int) *HashQueue {
@@ -231,7 +242,7 @@ func (c *Cache) CacheFileServer() {
 		paths := strings.Split(hash, "-")
 		dir := path.Join(FilesDir, paths[0])
 		if _, err := os.Stat(dir); err != nil {
-			if err = os.Mkdir(dir, 0755); err != nil {
+			if err = os.Mkdir(dir, 0777); err != nil {
 				continue
 			}
 		}
@@ -248,13 +259,13 @@ func (c *Cache) CacheFileServer() {
 					logger.Uld.Sugar().Errorf("download file %s from storage error:%v.\n", hash, err)
 					return
 				}
-				size, err := utils.GetDirSize(dir)
+				fs, err := os.Stat(path.Join(dir, paths[1]))
 				if err != nil {
 					c.AddFailedFile(paths[1])
 					logger.Uld.Sugar().Errorf("get size of file %s error:%v.\n", hash, err)
 					return
 				}
-				c.LoadInCache(hash, size)
+				c.LoadInCache(hash, uint64(fs.Size()))
 			})
 		}
 	}

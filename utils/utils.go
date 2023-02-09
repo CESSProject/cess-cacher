@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	_ "embed"
+	"encoding/hex"
 	"errors"
 	"io"
 	"math/rand"
@@ -10,24 +11,27 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/CESSProject/go-keyring"
+	"github.com/btcsuite/btcutil/base58"
 	"github.com/oschwald/geoip2-golang"
 )
 
 const baseStr = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()[]{}+-*/_=.<>?:|,~"
 
-func GetDirSize(path string) (uint64, error) {
-	fs, err := os.Stat(path)
-	if err != nil {
-		return 0, err
-	}
-	if fs.IsDir() {
-		return uint64(fs.Size()), nil
-	}
-	return 0, errors.New("not dir")
+// Get the total size of all files in a directory and subdirectories
+func DirSize(path string) (uint64, error) {
+	var size uint64
+	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if !info.IsDir() {
+			size += uint64(info.Size())
+		}
+		return err
+	})
+	return size, err
 }
 
 func GetFileNum(path string) (int, error) {
@@ -147,4 +151,22 @@ func VerifySign(acc string, data []byte, sign []byte) bool {
 		arr[i] = sign[i]
 	}
 	return verkr.Verify(verkr.SigningContext(data), arr)
+}
+
+func HexStringToBase58(str string) (string, error) {
+	str = strings.TrimPrefix(str, "0x")
+	bytes, err := hex.DecodeString(str)
+	if err != nil {
+		return "", err
+	}
+	return base58.Encode(bytes), nil
+}
+
+func Base58ToHexString(str string, prefix bool) string {
+	bytes := base58.Decode(str)
+	str = hex.EncodeToString(bytes)
+	if prefix {
+		str = "0x" + str
+	}
+	return str
 }

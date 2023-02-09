@@ -43,10 +43,7 @@ func QueryMinerStats() (MinerStats, resp.Error) {
 	if err != nil {
 		return mstat, resp.NewError(500, errors.Wrap(err, "query miner stats error"))
 	}
-	mstat.DiskStats, err = cache.GetDiskStats()
-	if err != nil {
-		return mstat, resp.NewError(500, errors.Wrap(err, "query miner stats error"))
-	}
+	mstat.DiskStats = cache.GetCacheDiskStats()
 	extIp, err := utils.GetExternalIp()
 	if err != nil {
 		return mstat, resp.NewError(500, errors.Wrap(err, "query miner stats error"))

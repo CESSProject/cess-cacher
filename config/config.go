@@ -9,6 +9,7 @@ import (
 
 type Config struct {
 	CacheDir     string
+	MaxCacheSize uint64
 	MaxCacheRate float64
 	Threshold    float64
 	FreqWeight   float64

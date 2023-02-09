@@ -36,16 +36,16 @@ func (q LruQueue) Swap(i, j int)      { q[i], q[j] = q[j], q[i] }
 func GetRandomList(c *Cache, pickSize uint64) []Item {
 	var (
 		size     uint64
-		check    map[string]struct{}
 		randList []Item
 	)
 	if pickSize <= 0 || pickSize >= c.TotalSize() {
-		return randList
+		pickSize = c.TotalSize()
 	}
 	r := int(pickSize * 100 / c.TotalSize())
 	if r <= 0 {
 		r = 50
 	}
+	check := make(map[string]struct{})
 	now := time.Now()
 	for size < pickSize {
 		c.hashMap.Range(func(key, value any) bool {
@@ -85,22 +85,18 @@ func RandomLRU(c *Cache, cleanSize uint64) {
 			break
 		}
 		size += v.Size
-		c.hashMap.Delete(v.Hash)
+		c.Delete(v.Hash)
 		c.delQueue.Insert(v.Hash)
 	}
 }
 
 func StrategyServer(c *Cache) {
-	NetInfo := GetNetInfo()
-	interval := MaxCacheSize * 3 / 100 / NetInfo.Download * uint64(time.Second)
-	if interval > uint64(FLASH_TIME) || interval <= 0 {
-		interval = uint64(FLASH_TIME)
-	}
-	ticker := time.NewTicker(time.Duration(interval))
+	ticker := time.NewTicker(time.Duration(FLASH_TIME))
 	defer ticker.Stop()
 	for range ticker.C {
 		used := c.TotalSize()
 		if used >= uint64(float64(MaxCacheSize)*MaxCacheRate) {
+			logger.Uld.Sugar().Info("cache strategy working...")
 			RandomLRU(c, used-uint64(float64(MaxCacheSize)*Threshold))
 		}
 	}
@@ -120,20 +116,17 @@ func Reorganizate(c *Cache) error {
 			return errors.Wrap(err, "reorganizate cache error")
 		}
 		for _, f := range df {
-			if _, ok := c.hashMap.Load(dir.Name() + "-" + f.Name()); dir.IsDir() || ok {
+			if _, ok := c.hashMap.Load(dir.Name() + "-" + f.Name()); f.IsDir() || ok {
 				continue
 			}
 			if CheckBadFileAndDel(dir.Name(), f.Name()) {
 				continue
 			}
-			info := FileInfo{}
+			var size uint64
 			if i, err := f.Info(); err == nil {
-				info.Size = uint64(i.Size())
+				size = uint64(i.Size())
 			}
-			info.LoadTime = time.Now()
-			info.LastAccTime = time.Now()
-			info.UsedCount = 1
-			c.hashMap.Store(dir.Name(), info)
+			c.LoadInCache(dir.Name()+"-"+f.Name(), size)
 		}
 	}
 	return nil

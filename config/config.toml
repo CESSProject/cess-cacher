@@ -1,7 +1,8 @@
 	CacheDir=""
-	MaxCacheRate=""
-	Threshold=""
-	FreqWeight=""
+	MaxCacheSize=104857600
+	MaxCacheRate=0.95
+	Threshold=0.8
+	FreqWeight=0.3
 	ServerIp="172.16.2.35"
 	ServerPort="8080"
 	TokenKey=""

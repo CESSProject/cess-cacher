@@ -6,7 +6,6 @@ import (
 	"cess-cacher/config"
 	resp "cess-cacher/server/response"
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"sync"
@@ -62,7 +61,7 @@ func DownloadService(t Ticket) (string, resp.Error) {
 		progress, ect := cache.DownloadProgressBar(t.FileHash, t.SliceHash, t.Size)
 		slicePath = fmt.Sprintf(
 			"file %s is being cached %2.2f %%,it will take about %d s",
-			t.SliceHash, progress, ect,
+			t.SliceHash, progress*100, ect,
 		)
 		tickets.Delete(t.BID)
 		return slicePath, resp.NewError(0, nil)
@@ -108,7 +107,6 @@ func PraseTicketByBID(hash, bid string) (Ticket, error) {
 	ticket.SliceHash = shash
 	ticket.Expires = bill.Expires
 	ticket.Size = size
-	log.Println("expires time:", bill.Expires)
 	return ticket, nil
 }
 

@@ -42,7 +42,6 @@ type NetStats struct {
 }
 
 type CacheStats struct {
-	once   sync.Once
 	hits   *uint64
 	misses *uint64
 	errs   *uint64
@@ -54,7 +53,7 @@ type Stat struct {
 	ErrRate  float32 `json:"errRate"`
 }
 
-const FLASH_TIME = time.Hour * 12
+const FLASH_TIME = time.Minute
 
 var (
 	netInfo NetStats
@@ -109,11 +108,26 @@ func GetDiskStats() (DiskStats, error) {
 		}
 		data = append(data, uint64(d))
 	}
-	stats.Total = data[0]
-	stats.Used = data[1]
-	stats.Available = data[2]
+	stats.Total = data[0] * 1024
+	stats.Used = data[1] * 1024
+	stats.Available = data[2] * 1024
 	stats.UseRate = float32(data[3]) / 100
 	return stats, nil
+}
+
+func GetCacheDiskStats() DiskStats {
+	used := GetCacheHandle().TotalSize()
+	ur := math.Trunc(float64(used)/float64(MaxCacheSize)*100) / 100
+	var available uint64
+	if MaxCacheSize > used {
+		available = MaxCacheSize - used
+	}
+	return DiskStats{
+		Total:     MaxCacheSize,
+		Used:      used,
+		Available: available,
+		UseRate:   float32(ur),
+	}
 }
 
 func GetMemoryStats() (MemoryStats, error) {
@@ -133,9 +147,9 @@ func GetMemoryStats() (MemoryStats, error) {
 		}
 		data[i] = uint64(d)
 	}
-	stats.Total = data[0]
-	stats.Free = data[1]
-	stats.Available = data[2]
+	stats.Total = data[0] * 1024
+	stats.Free = data[1] * 1024
+	stats.Available = data[2] * 1024
 	return stats, nil
 }
 
@@ -146,7 +160,7 @@ func GetCPUStats() (CPUStats, error) {
 	if err != nil {
 		return stats, errors.Wrap(err, "get cpu stats error")
 	}
-	stats.LoadAvgs = float32(math.Trunc(rate[0]*100) / 100)
+	stats.LoadAvgs = float32(math.Trunc(rate[0]*10) / 1000)
 	return stats, nil
 }
 
