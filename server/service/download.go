@@ -81,7 +81,7 @@ func PraseTicketByBID(hash, bid string) (Ticket, error) {
 		return ticket, errors.Wrap(err, "prase ticket error")
 	}
 	//test chain
-	bill, err := chain.GetTestChainCli().GetBill(types.NewHash(b), bid)
+	bill, err := chain.GetChainCli().GetBill(types.NewHash(b), bid)
 	if err != nil {
 		return ticket, errors.Wrap(err, "prase ticket error")
 	}

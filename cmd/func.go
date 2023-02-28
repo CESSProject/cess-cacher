@@ -10,7 +10,7 @@ import (
 )
 
 func RegisterCacher() {
-	cli := chain.GetTestChainCli()
+	cli := chain.GetChainCli()
 	conf := config.GetConfig()
 	txhash, err := cli.Register(conf.ServerIp, conf.ServerPort, conf.BytePrice)
 	if err != nil {
@@ -20,7 +20,7 @@ func RegisterCacher() {
 }
 
 func UpdateCacherInfo() {
-	cli := chain.GetTestChainCli()
+	cli := chain.GetChainCli()
 	conf := config.GetConfig()
 	txhash, err := cli.Update(conf.ServerIp, conf.ServerPort, conf.BytePrice)
 	if err != nil {
@@ -30,7 +30,7 @@ func UpdateCacherInfo() {
 }
 
 func LogoutCacher() {
-	txhash, err := chain.GetTestChainCli().Logout()
+	txhash, err := chain.GetChainCli().Logout()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func BuildProfile(cmd *cobra.Command) {
 	}
 
 	//test chain
-	if err := chain.InitTestChainClient(); err != nil {
+	if err := chain.InitChainClient(config.GetConfig()); err != nil {
 		logger.Uld.Sugar().Errorf("init test chain client error:%v", err)
 		log.Fatalf("init test chain client error:%v.\n", err)
 	}
