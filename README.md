@@ -52,8 +52,18 @@ BytePrice=1000
 	```shell
 	go run main.go logout
 	```
-
-### Run Cache Server
+## Unit Test
+You can use the test samples in the test directory for unit testing. Note that you should set the configuration file before testing
+```shell
+cd test 
+# test cacher chain client
+go test chain_test.go
+# test cacher init
+go test init_test.go
+# test cacher query api
+go test query_test.go
+```
+## Run Cache Server
 
 You only need to start the cache service with one line of command, and the subsequent tasks should be handed to the indexer. Of course, cache miners also provide a series of rich APIs for developers to use, which will be explained later.
 
