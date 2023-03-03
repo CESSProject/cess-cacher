@@ -52,6 +52,13 @@ BytePrice=1000
 	```shell
 	go run main.go logout
 	```
+## Run Cache Server
+
+You only need to start the cache service with one line of command, and the subsequent tasks should be handed to the indexer. Of course, cache miners also provide a series of rich APIs for developers to use, which will be explained later.
+
+```shell
+go run main.go run
+```	
 ## Unit Test
 You can use the test samples in the test directory for unit testing. Note that you should set the configuration file before testing
 ```shell
@@ -77,14 +84,6 @@ https://github.com/CESSProject/cess-cacher/blob/1c28cbabbcb72f843859ba405e7ad6be
 6. When user download a file, the DownloadService will be called. The service will record the used bill and automatically destroy it after it expires. Since the validity of the bill has been verified in the token generation stage, it is only necessary to verify whether it expires when downloading the file.
 https://github.com/CESSProject/cess-cacher/blob/1c28cbabbcb72f843859ba405e7ad6bec4486356/server/service/download.go#L41-L75
 7. When the cache service is started, it will start a series of services through goroutine. These services ensure that the cacher can provide stable and reliable cache services in the background. The specific implementation of cache is in the `./base/cache` directory, due to the complexity of the content, it will not be introduced here.
-
-## Run Cache Server
-
-You only need to start the cache service with one line of command, and the subsequent tasks should be handed to the indexer. Of course, cache miners also provide a series of rich APIs for developers to use, which will be explained later.
-
-```shell
-go run main.go run
-```
 
 
 
