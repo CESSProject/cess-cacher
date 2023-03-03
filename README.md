@@ -63,6 +63,21 @@ go test init_test.go
 # test cacher query api
 go test query_test.go
 ```
+## Code Walkthrough
+1. When the user uses the `register` command, the transaction will be send through the register method under the chain directory to complete the registration on the blockchain, and the registration data uses the content configured in config.toml
+https://github.com/CESSProject/cess-cacher/blob/1c28cbabbcb72f843859ba405e7ad6bec4486356/base/chain/transaction.go#L122-L135
+2. User can update the information in the configuration file first, and then use the `update` command to update the cacher data on the blockchain. This method is still in the transaction.go file under the chain directory.
+https://github.com/CESSProject/cess-cacher/blob/1c28cbabbcb72f843859ba405e7ad6bec4486356/base/chain/transaction.go#L137-L153
+3. Similarly, when the user uses the `logout` command, the logout method will be called to log out the cacher information.
+https://github.com/CESSProject/cess-cacher/blob/1c28cbabbcb72f843859ba405e7ad6bec4486356/base/chain/transaction.go#L155-L163
+4. If the user executes the `run` command, the cache service will be started, which is an HTTP service. Then the indexer can call the query service in the query.go file under the service directory to obtain the information about the cacher.
+https://github.com/CESSProject/cess-cacher/blob/1c28cbabbcb72f843859ba405e7ad6bec4486356/server/service/query.go#L29-L78
+5. When the indexer requests to generate a file download token, it will call the GenerateToken service, which will check the validity of the cache bill and warm up the cache download.
+https://github.com/CESSProject/cess-cacher/blob/1c28cbabbcb72f843859ba405e7ad6bec4486356/server/service/auth.go#L24-L57
+6. When user download a file, the DownloadService will be called. The service will record the used bill and automatically destroy it after it expires. Since the validity of the bill has been verified in the token generation stage, it is only necessary to verify whether it expires when downloading the file.
+https://github.com/CESSProject/cess-cacher/blob/1c28cbabbcb72f843859ba405e7ad6bec4486356/server/service/download.go#L41-L75
+7. When the cache service is started, it will start a series of services through goroutine. These services ensure that the cacher can provide stable and reliable cache services in the background. The specific implementation of cache is in the `./base/cache` directory, due to the complexity of the content, it will not be introduced here.
+
 ## Run Cache Server
 
 You only need to start the cache service with one line of command, and the subsequent tasks should be handed to the indexer. Of course, cache miners also provide a series of rich APIs for developers to use, which will be explained later.
